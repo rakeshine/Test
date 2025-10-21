@@ -140,18 +140,26 @@ def parse_jtl_file(jtl_path):
         time_span = (df['timeStamp'].max() - df['timeStamp'].min()) / 1000  # Convert to seconds
         if time_span == 0:
             time_span = 1  # Prevent division by zero
+
+        connect_times = df['Connect'].dropna() if 'Connect' in df.columns else pd.Series([0])
+        latency = df['Latency'].mean() if 'Latency' in df.columns else 0
+        response_size = df['bytes'].mean() if 'bytes' in df.columns else 0
             
         metrics = {
+            'samples': total_requests,  # Add total number of samples
             'tps': total_requests / time_span if time_span > 0 else 0,
             'avg_response_time': response_times.mean(),
             'median_response_time': response_times.median(),
+            'p90_response_time': response_times.quantile(0.90),
             'p95_response_time': response_times.quantile(0.95),
             'p99_response_time': response_times.quantile(0.99),
             'error_rate': error_rate,
             'active_threads': df['allThreads'].mean() if 'allThreads' in df.columns else 0,
             'throughput': (df['bytes'].sum() / 1024 / time_span) if 'bytes' in df.columns and time_span > 0 else 0,
-            'latency': df['Latency'].mean() if 'Latency' in df.columns else 0,
-            'timestamp': datetime.fromtimestamp(os.path.getmtime(jtl_path)).strftime('%Y-%m-%d %H:%M:%S')
+            'latency': latency,
+            'timestamp': datetime.fromtimestamp(os.path.getmtime(jtl_path)).strftime('%Y-%m-%d %H:%M:%S'),
+            'response_size': response_size,
+            'connect_time': connect_times.mean(),
         }
         return metrics
         

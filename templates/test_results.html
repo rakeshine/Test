@@ -166,16 +166,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Define the metrics we want to show and their display names
                 const metricsConfig = [
-                    { key: 'timestamp', name: 'Timestamp', format: 'text' },
+                    { key: 'samples', name: 'Number of Threads', format: 'number' },
                     { key: 'tps', name: 'Transactions per Second', format: 'number' },
                     { key: 'avg_response_time', name: 'Average Response Time (ms)', format: 'number' },
                     { key: 'median_response_time', name: 'Median Response Time (ms)', format: 'number' },
+                    { key: 'p90_response_time', name: '90th Percentile (ms)', format: 'number' },
                     { key: 'p95_response_time', name: '95th Percentile (ms)', format: 'number' },
                     { key: 'p99_response_time', name: '99th Percentile (ms)', format: 'number' },
                     { key: 'error_rate', name: 'Error Rate (%)', format: 'percent' },
                     { key: 'active_threads', name: 'Active Threads', format: 'number' },
                     { key: 'throughput', name: 'Throughput (KB/s)', format: 'number' },
-                    { key: 'latency', name: 'Latency (ms)', format: 'number' }
+                    { key: 'latency', name: 'Latency (ms)', format: 'number' },
+                    { key: 'response_size', name: 'Avg Response Size (bytes)', format: 'number' },
+                    { key: 'connect_time', name: 'Connect Time (ms)', format: 'number' }
                 ];
                 
                 // Clear the table
@@ -210,7 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (value === undefined || value === null) {
                             cell.textContent = 'N/A';
                         } else if (config.format === 'number') {
-                            cell.textContent = Number(value).toFixed(2);
+                            const formattedValue = config.formatFn ? 
+                            config.formatFn(value) : 
+                            Number(value).toFixed(2);
+                            cell.textContent = formattedValue;
                         } else if (config.format === 'percent') {
                             cell.textContent = `${Number(value).toFixed(2)}%`;
                             if (Number(value) > 0) {
