@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Swagger API Viewer{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #f8f9fa;
+        }
+        .sidebar .nav-link {
+            font-weight: 500;
+            color: #333;
+            padding: 0.5rem 1rem;
+            margin: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .sidebar .nav-link:hover {
+            color: #0d6efd;
+            background-color: #e9ecef;
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #0d6efd;
+        }
+        .sidebar .nav-link i {
+            margin-right: 4px;
+            color: inherit;
+        }
+        main {
+            padding: 2rem 1.5rem;
+            margin-left: 250px;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-top: 1rem;
+        }
+        .upload-section {
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 1rem 0;
+            text-align: center;
+            background-color: #f8f9fa;
+        }
+        .method {
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            color: white;
+        }
+        .method-get { background-color: #61affe; }
+        .method-post { background-color: #49cc90; }
+        .method-put { background-color: #fca130; }
+        .method-delete { background-color: #f93e3e; }
+        .method-patch { background-color: #50e3c2; }
+        .method-head { background-color: #9012fe; }
+        .method-options { background-color: #0d5aa7; }
+        .save-status {
+            display: none;
+            margin-top: 0.25rem;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block sidebar">
+                <div class="position-sticky pt-3">
+                    <h5 class="px-3 mb-3">API Viewer</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'upload' %}active{% endif %}" href="{{ url_for('upload') }}">
+                                <i class="bi bi-upload"></i>
+                                Upload
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'endpoints' %}active{% endif %}" href="{{ url_for('endpoints') }}">
+                                <i class="bi bi-list-ul"></i>
+                                Endpoints
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'scenarios' %}active{% endif %}" href="{{ url_for('list_scenarios') }}">
+                                <i class="bi bi-collection"></i>
+                                Scenarios
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'services' %}active{% endif %}" href="{{ url_for('list_services') }}">
+                                <i class="bi bi-boxes"></i>
+                                Services
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'test_data' %}active{% endif %}" href="{{ url_for('test_data') }}">
+                                <i class="bi bi-folder2-open"></i>
+                                Test Data
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'test_results' %}active{% endif %}" href="{{ url_for('test_results') }}">
+                                <i class="bi bi-graph-up"></i>
+                                Test Results
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+                
+                <div class="text-center mt-5 text-muted">
+                    <small>Server Status: <span id="server-status" class="text-success">●</span> <span id="status-time"></span></small>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        // Update server status
+        function updateServerStatus() {
+            const statusElement = document.getElementById('server-status');
+            const timeElement = document.getElementById('status-time');
+            
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    statusElement.className = data.status === 'online' ? 'text-success' : 'text-danger';
+                    statusElement.textContent = '●';
+                    timeElement.textContent = new Date().toLocaleTimeString();
+                })
+                .catch(() => {
+                    statusElement.className = 'text-danger';
+                    statusElement.textContent = '●';
+                    timeElement.textContent = 'Connection error';
+                });
+        }
+
+        // Update status every 30 seconds
+        updateServerStatus();
+        setInterval(updateServerStatus, 30000);
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Scenarios - Swagger API Viewer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Saved Scenarios</h2>
+        <div>
+            <a href="{{ url_for('endpoints') }}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Endpoints
+            </a>
+        </div>
+    </div>
+
+    {% if not scenarios %}
+    <div class="alert alert-info">
+        No scenarios found. Create your first scenario from the Endpoints page.
+    </div>
+    {% else %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Scenario Name</th>
+                    <th>Endpoints</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for scenario in scenarios %}
+                <tr>
+                    <td>
+                        <strong>{{ scenario.name }}</strong><br>
+                        <small class="text-muted">{{ scenario.filename }}</small>
+                    </td>
+                    <td>
+                        <div class="endpoint-list" style="max-height: 150px; overflow-y: auto;">
+                            {% for endpoint in scenario.endpoints %}
+                            <div class="mb-1">
+                                <span class="badge bg-{{ 'success' if endpoint.method == 'GET' else 'primary' }}">
+                                    {{ endpoint.method }}
+                                </span>
+                                <code>{{ endpoint.path }}</code>
+                                {% if endpoint.description %}
+                                <small class="text-muted d-block">{{ endpoint.description }}</small>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if scenario.created_at %}
+                        {{ scenario.created_at|datetimeformat }}
+                        {% else %}
+                        <span class="text-muted">Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-primary generate-btn" 
+                                    data-scenario-name="{{ scenario.name }}"
+                                    data-bs-toggle="tooltip" 
+                                    title="Generate Test Files">
+                                <i class="bi bi-gear"></i> Generate
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2 delete-scenario-btn"
+                                    data-scenario-name="{{ scenario.name }}"
+                                    data-bs-toggle="tooltip"
+                                    title="Delete Scenario">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Function to handle generate button click
+function handleGenerateClick(e) {
+    e.preventDefault();
+    
+    const generateBtn = e.currentTarget;
+    const scenarioName = generateBtn.getAttribute('data-scenario-name');
+    
+    if (!scenarioName) {
+        return;
+    }
+    
+    const originalContent = generateBtn.innerHTML;
+    
+    // Show loading state
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+    
+    // Call the API to generate test files
+    const requestData = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            scenario_name: scenarioName
+        })
+    };
+    
+    fetch('/api/generate_tests', requestData)
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { 
+                throw err; 
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Show success message with file paths
+        const toast = new bootstrap.Toast(document.getElementById('successToast'));
+        const toastBody = document.querySelector('#successToast .toast-body');
+        
+        // Create a list of generated files
+        const fileList = data.files.map(function(file) {
+            return '<li>' + file.split('/').pop() + '</li>';
+        }).join('');
+        
+        // Create HTML content using string concatenation to avoid template literal conflicts
+        var htmlContent = '<div>';
+        htmlContent += '<p>Test files for "' + scenarioName + '" have been generated successfully.</p>';
+        htmlContent += '<p class="mb-1">Saved to: <code>' + data.output_dir + '</code></p>';
+        htmlContent += '<div class="mt-2">';
+        htmlContent += '<button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#fileList">';
+        htmlContent += 'Show generated files';
+        htmlContent += '</button>';
+        htmlContent += '<div class="collapse mt-2" id="fileList">';
+        htmlContent += '<div class="card card-body bg-dark text-white p-2">';
+        htmlContent += '<ul class="mb-0">' + fileList + '</ul>';
+        htmlContent += '</div></div></div></div>';
+        
+        toastBody.innerHTML = htmlContent;
+        
+        toast.show();
+    })
+    .catch(error => {
+        let errorMessage = 'Failed to generate test files';
+        
+        if (error.error) {
+            errorMessage = error.error;
+        } else if (error.message) {
+            errorMessage = error.message;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        }
+        
+        const errorToast = new bootstrap.Toast(document.getElementById('errorToast'));
+        const toastBody = document.querySelector('#errorToast .toast-body');
+        if (toastBody) {
+            toastBody.textContent = errorMessage;
+            errorToast.show();
+        }
+    })
+    .finally(function() {
+        // Restore button state
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalContent;
+        }
+    });
+}
+
+// Initialize when DOM is fully loaded
+// Handle cleanup button click
+document.getElementById('cleanupBtn')?.addEventListener('click', function() {
+    if (!confirm('Are you sure you want to delete all generated test files? This action cannot be undone.')) {
+        return;
+    }
+
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cleaning...';
+
+    fetch('/api/cleanup_tests', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const toast = new bootstrap.Toast(document.getElementById(data.success ? 'successToast' : 'errorToast'));
+        const toastBody = document.querySelector(`#${data.success ? 'successToast' : 'errorToast'} .toast-body`);
+        
+        if (toastBody) {
+            toastBody.textContent = data.message || data.error || 'Operation completed';
+            toast.show();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const toast = new bootstrap.Toast(document.getElementById('errorToast'));
+        const toastBody = document.querySelector('#errorToast .toast-body');
+        if (toastBody) {
+            toastBody.textContent = 'Failed to clean up test files: ' + (error.message || 'Unknown error');
+            toast.show();
+        }
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Enable tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Attach click handlers to all generate buttons
+    var generateButtons = document.querySelectorAll('.generate-btn');
+    var deleteButtons = document.querySelectorAll('.delete-scenario-btn');
+    generateButtons.forEach(function(button) {
+        button.addEventListener('click', handleGenerateClick);
+    });
+
+    deleteButtons.forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            const name = e.currentTarget.getAttribute('data-scenario-name');
+            if (!name) return;
+            if (!confirm(`Delete scenario "${name}"? This cannot be undone.`)) return;
+
+            fetch(`/api/scenarios/${encodeURIComponent(name)}`, { method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+              .then(r => r.json().then(j => ({ ok: r.ok, body: j })))
+              .then(({ ok, body }) => {
+                  const toastId = ok ? 'successToast' : 'errorToast';
+                  const toast = new bootstrap.Toast(document.getElementById(toastId));
+                  const toastBody = document.querySelector(`#${toastId} .toast-body`);
+                  if (toastBody) {
+                      toastBody.textContent = body.message || body.error || (ok ? 'Deleted' : 'Failed');
+                      toast.show();
+                  }
+                  if (ok) {
+                      // Reload page to refresh list
+                      window.location.reload();
+                  }
+              })
+              .catch(err => {
+                  const toast = new bootstrap.Toast(document.getElementById('errorToast'));
+                  const toastBody = document.querySelector('#errorToast .toast-body');
+                  if (toastBody) {
+                      toastBody.textContent = 'Failed to delete scenario: ' + (err.message || 'Unknown error');
+                      toast.show();
+                  }
+              });
+        });
+    });
+});
+</script>
+
+<!-- Success Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+    <!-- Error Toast -->
+    <div id="errorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}

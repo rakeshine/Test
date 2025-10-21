@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block title %}Endpoints - Swagger API Viewer{% endblock %}
+
+{% block content %}
+<!-- Toast for success messages -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast for error messages -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="errorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>API Endpoints</h2>
+        <div class="input-group" style="max-width: 300px;">
+            <input type="text" class="form-control" id="apiFilter" placeholder="Filter endpoints...">
+            <button class="btn btn-outline-secondary" type="button" id="clearFilter">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    {% if endpoints %}
+    <!-- Scenario Creation Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Create Scenario</h5>
+        </div>
+        <div class="card-body">
+            <form id="scenarioForm" class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" id="scenarioName" placeholder="Enter scenario name" required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Save Scenario
+                    </button>
+                </div>
+                <div class="col-12">
+                    <div class="form-text">
+                        Select endpoints above and enter a name to create a new scenario
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" id="endpointsTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">
+                        <!--<input type="checkbox" class="form-check-input" id="selectAll">-->
+                    </th>
+                    <th>Method</th>
+                    <th>Path</th>
+                    <th>Description</th>
+                    <th>File</th>
+                    <th style="width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for endpoint in endpoints %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input endpoint-checkbox" value="{{ endpoint.id }}">
+                    </td>
+                    <td>
+                        <span class="method method-{{ endpoint.method|lower }}">{{ endpoint.method }}</span>
+                    </td>
+                    <td>{{ endpoint.path }}</td>
+                    <td>{{ endpoint.description|default('No description', true) }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ endpoint.file }}</span>
+                    </td>
+                    <td class="text-nowrap">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#detailsModal" 
+                                    data-details='{{ endpoint|tojson|safe }}' title="View details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-success generate-test-btn" 
+                                    data-endpoint-id="{{ endpoint.id }}"
+                                    title="Generate test for this endpoint">
+                                <i class="bi bi-lightning"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        No endpoints found. Please upload some Swagger/OpenAPI files first.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Endpoint Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Endpoint Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="endpointDetails">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Close
+                </button>
+            </div>
+            <!-- Schema Modal -->
+            <div class="modal fade" id="schemaModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Endpoint Schema</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <pre id="schemaContent" class="bg-light p-3" style="max-height: 60vh; overflow-y: auto;"></pre>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle me-1"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
+<!-- Toast containers -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+  <div id="errorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Prevent duplicate script execution
+if (!window.__endpointsScriptInitialized) {
+    window.__endpointsScriptInitialized = true;
+    
+    // Filter functionality
+    // ... existing filter code ...
+    const apiFilter = document.getElementById('apiFilter');
+const clearFilter = document.getElementById('clearFilter');
+const table = document.getElementById('endpointsTable');
+const rows = table ? table.getElementsByTagName('tr') : [];
+
+function filterTable() {
+    const filter = apiFilter.value.toLowerCase();
+    
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.getElementsByTagName('td');
+        let shouldShow = false;
+        
+        for (let j = 0; j < cells.length; j++) {
+            if (cells[j].textContent.toLowerCase().includes(filter)) {
+                shouldShow = true;
+                break;
+            }
+        }
+        
+        row.style.display = shouldShow ? '' : 'none';
+    }
+}
+
+// Event listeners for filter
+if (apiFilter) {
+    apiFilter.addEventListener('keyup', filterTable);
+}
+
+if (clearFilter) {
+    clearFilter.addEventListener('click', function() {
+        apiFilter.value = '';
+        filterTable();
+    });
+}
+
+// Select all checkboxes
+const selectAllCheckbox = document.getElementById('selectAll');
+const checkboxes = document.getElementsByClassName('endpoint-checkbox');
+
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        
+        for (let checkbox of checkboxes) {
+            if (checkbox.closest('tr').style.display !== 'none') {
+                checkbox.checked = isChecked;
+            }
+        }
+    });
+}
+
+// Individual checkbox functionality
+for (let checkbox of checkboxes) {
+    checkbox.addEventListener('change', function() {
+        if (!this.checked && selectAllCheckbox.checked) {
+            selectAllCheckbox.checked = false;
+        } else if (this.checked) {
+            // Check if all visible checkboxes are checked
+            const allChecked = Array.from(checkboxes).every(cb => {
+                return !cb.checked || cb.closest('tr').style.display === 'none';
+            });
+            selectAllCheckbox.checked = allChecked;
+        }
+    });
+}
+
+// Modal functionality
+const detailsModal = document.getElementById('detailsModal');
+
+if (detailsModal) {
+    detailsModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return; // ✅ safely exit if undefined
+        
+        const detailsJson = button.getAttribute('data-details');
+        if (!detailsJson) return; // ✅ safety check
+        
+        const details = JSON.parse(detailsJson);
+        const modalBody = detailsModal.querySelector('.modal-body');
+        
+        let content = `
+            <div class="mb-3">
+                <h5>${details.path}</h5>
+                <span class="method method-${details.method.toLowerCase()}">${details.method}</span>
+                <span class="badge bg-secondary ms-2">${details.file}</span>
+            </div>
+            <div class="mb-3">
+                <h6>Description:</h6>
+                <p>${details.description || 'No description available.'}</p>
+            </div>`;
+
+        // Add parameters if they exist
+        if (details.parameters && details.parameters.length > 0) {
+            content += `
+            <div class="mb-3">
+                <h6>Parameters:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>In</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            details.parameters.forEach(param => {
+                const paramSchema = param.schema || { type: param.type || 'object' };
+                const example = generateExample(paramSchema);
+                
+                content += `
+                            <tr>
+                                <td><code>${param.name}</code></td>
+                                <td>${param.in}</td>
+                                <td>${paramSchema.type || 'object'}</td>
+                                <td>${param.required ? 'Yes' : 'No'}</td>
+                                <td>${param.description || ''}</td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-outline-primary schema-btn" 
+                                            data-schema='${JSON.stringify(paramSchema)}'>
+                                        Schema
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary example-btn" 
+                                            data-example='${JSON.stringify(example)}'>
+                                        Example
+                                    </button>
+                                </td>
+                            </tr>`;
+            });
+
+            content += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        // Add responses if they exist
+        if (details.responses) {
+            content += `
+            <div class="mb-3">
+                <h6>Responses:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Status Code</th>
+                                <th>Description</th>
+                                <th>Content Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            Object.entries(details.responses).forEach(([status, response]) => {
+                const contentTypes = response.content ? Object.keys(response.content) : [];
+                let schema = {};
+                let example = {};
+                
+                if (response.content) {
+                    const firstContentType = Object.values(response.content)[0];
+                    if (firstContentType && firstContentType.schema) {
+                        schema = firstContentType.schema;
+                        example = generateExample(schema);
+                    }
+                }
+                
+                content += `
+                            <tr>
+                                <td><span class="badge bg-${status >= 200 && status < 300 ? 'success' : 'info'}">${status}</span></td>
+                                <td>${response.description || 'No description'}</td>
+                                <td>${contentTypes.join(', ') || 'N/A'}</td>
+                            </tr>`;
+            });
+
+            content += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        }
+
+        modalBody.innerHTML = content;
+        
+        // Create a clean copy of the endpoint data without the _full_spec
+        const endpointData = JSON.parse(JSON.stringify(details));
+        delete endpointData._full_spec;
+        
+        // Create a set to track circular references
+        const seen = new WeakSet();
+        
+        const endpointDataStr = JSON.stringify(endpointData, (key, value) => {
+            // Handle circular references
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) {
+                    return '[Circular Reference]';
+                }
+                seen.add(value);
+            }
+            return value;
+        }, 2);
+    });
+}
+
+// Scenario management
+function initializeScenarioManagement() {
+    // Handle select all/none
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const endpointCheckboxes = document.querySelectorAll('.endpoint-checkbox');
+    const scenarioForm = document.getElementById('scenarioForm');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            endpointCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+    }
+
+    // Handle scenario form submission
+    if (scenarioForm) {
+        scenarioForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const scenarioName = document.getElementById('scenarioName').value.trim();
+            if (!scenarioName) {
+                alert('Please enter a scenario name');
+                return;
+            }
+
+            // Get selected endpoints
+            const selectedEndpoints = [];
+            document.querySelectorAll('.endpoint-checkbox:checked').forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const method = row.cells[1].textContent.trim();
+                const path = row.cells[2].textContent.trim();
+                const description = row.cells[3].textContent.trim();
+                const file = row.cells[4].textContent.trim();
+                
+                selectedEndpoints.push({
+                    method: method,
+                    path: path,
+                    description: description,
+                    file: file
+                });
+            });
+
+            if (selectedEndpoints.length === 0) {
+                alert('Please select at least one endpoint');
+                return;
+            }
+
+            try {
+                const response = await fetch('/save_scenario', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: scenarioName,
+                        endpoints: selectedEndpoints
+                    })
+                });
+
+                if (response.ok) {
+                    alert(`Scenario '${scenarioName}' saved successfully!`);
+                    scenarioForm.reset();
+                    // Uncheck all checkboxes
+                    endpointCheckboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = false;
+                    }
+                } else {
+                    const error = await response.text();
+                    throw new Error(error || 'Failed to save scenario');
+                }
+            } catch (error) {
+                console.error('Error saving scenario:', error);
+                alert(`Error saving scenario: ${error.message}`);
+            }
+        });
+    }
+}
+
+// Function to generate example data based on schema
+function generateExample(schema) {
+    if (!schema) return {};
+    
+    // Handle $ref
+    if (schema.$ref) {
+        // In a real app, you'd resolve the reference
+        return { $ref: schema.$ref };
+    }
+    
+    // Handle different schema types
+    switch (schema.type) {
+        case 'string':
+            if (schema.enum) return schema.enum[0];
+            if (schema.format === 'date-time') return new Date().toISOString();
+            if (schema.format === 'uuid') return '550e8400-e29b-41d4-a716-446655440000';
+            return 'string';
+        case 'number':
+        case 'integer':
+            return 0;
+        case 'boolean':
+            return true;
+        case 'array':
+            if (schema.items) {
+                return [generateExample(schema.items)];
+            }
+            return [];
+        case 'object':
+            const example = {};
+            if (schema.properties) {
+                Object.entries(schema.properties).forEach(([key, prop]) => {
+                    example[key] = generateExample(prop);
+                });
+            }
+            return example;
+        default:
+            return {};
+    }
+}
+// Initialize scenario management when the DOM is fully loaded
+// Handle generate test button click
+function handleGenerateTest(e) {
+    const btn = e.currentTarget;
+    const detailsJson = btn.closest('.btn-group').querySelector('[data-details]').getAttribute('data-details');
+    if (!detailsJson) return;
+    
+    const endpointData = JSON.parse(detailsJson);
+    if (!endpointData) return;
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    fetch('/api/generate_tests_for_endpoint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            endpoint_id: {
+                file: endpointData.file,
+                method: endpointData.method,
+                path: endpointData.path
+            }
+        })
+    })
+    .then(r => r.ok ? r.json() : r.json().then(err => Promise.reject(err)))
+    .then(data => {
+        // Show success message with file paths
+        const toast = new bootstrap.Toast(document.getElementById('successToast'));
+        const toastBody = document.querySelector('#successToast .toast-body');
+        
+        // Create a list of generated files
+        const fileList = data.files.map(function(file) {
+            return '<li>' + file.split('/').pop() + '</li>';
+        }).join('');
+        
+        // Create HTML content using string concatenation to avoid template literal conflicts
+        var htmlContent = '<div>';
+        htmlContent += '<p>Test files for "' + data.scenario_name + '" have been generated successfully.</p>';
+        htmlContent += '<p class="mb-1">Saved to: <code>' + data.output_dir + '</code></p>';
+        htmlContent += '<div class="mt-2">';
+        htmlContent += '<button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#fileList">';
+        htmlContent += 'Show generated files';
+        htmlContent += '</button>';
+        htmlContent += '<div class="collapse mt-2" id="fileList">';
+        htmlContent += '<div class="card card-body bg-dark text-white p-2">';
+        htmlContent += '<ul class="mb-0">' + fileList + '</ul>';
+        htmlContent += '</div></div></div></div>';
+        
+        if (toastBody) {
+            toastBody.innerHTML = htmlContent;
+            toast.show();
+        }
+    })
+    .catch(err => {
+        const toast = new bootstrap.Toast(document.getElementById('errorToast'));
+        const toastBody = document.querySelector('#errorToast .toast-body');
+        const msg = (err && (err.error || err.message)) || 'Failed to generate test files';
+        if (toastBody) { 
+            toastBody.textContent = msg; 
+            toast.show(); 
+        }
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeScenarioManagement();
+    
+    // Add click handlers for generate test buttons
+    document.querySelectorAll('.generate-test-btn').forEach(btn => {
+        btn.addEventListener('click', handleGenerateTest);
+    });
+});
+
+// Handle schema and example button clicks
+document.addEventListener('click', function(e) {
+    // Handle schema button clicks
+    if (e.target.classList.contains('schema-btn') || e.target.closest('.schema-btn')) {
+        const button = e.target.classList.contains('schema-btn') ? e.target : e.target.closest('.schema-btn');
+        const schema = JSON.parse(button.getAttribute('data-schema'));
+        
+        const schemaModal = new bootstrap.Modal(document.getElementById('schemaModal'));
+        const schemaContent = document.getElementById('schemaContent');
+        
+        schemaContent.textContent = JSON.stringify(schema, null, 2);
+        if (window.hljs) {
+            hljs.highlightElement(schemaContent);
+        }
+        
+        const modalTitle = document.querySelector('#schemaModal .modal-title');
+        modalTitle.textContent = 'Schema';
+        
+        schemaModal.show();
+    }
+    
+    // Handle example button clicks
+    if (e.target.classList.contains('example-btn') || e.target.closest('.example-btn')) {
+        const button = e.target.classList.contains('example-btn') ? e.target : e.target.closest('.example-btn');
+        const example = JSON.parse(button.getAttribute('data-example'));
+        
+        const exampleModal = new bootstrap.Modal(document.getElementById('schemaModal'));
+        const schemaContent = document.getElementById('schemaContent');
+        
+        schemaContent.textContent = JSON.stringify(example, null, 2);
+        if (window.hljs) {
+            hljs.highlightElement(schemaContent);
+        }
+        
+        const modalTitle = document.querySelector('#schemaModal .modal-title');
+        modalTitle.textContent = 'Example';
+        
+        exampleModal.show();
+    }
+});
+}
+</script>
+{% endblock %}
+{% endblock %}

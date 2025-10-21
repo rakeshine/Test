@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Test Results - Swagger API Viewer{% endblock %}
+
+{% block content %}
+<script type="text/css">
+    #metricsTable {
+        font-size: 0.85rem;
+    }
+    
+    #metricsTable th {
+        white-space: nowrap;
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    #metricsTable td, #metricsTable th {
+        padding: 0.5rem;
+        vertical-align: middle;
+    }
+    
+    #metricsTable tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+    
+    /* Make the first column sticky */
+    #metricsTable tbody td:first-child {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 5;
+        font-weight: 500;
+    }
+    
+    /* Add border to separate sticky column */
+    #metricsTable tbody td:first-child {
+        border-right: 1px solid #dee2e6;
+    }
+    
+    /* Style for the DataTables scroll wrapper */
+    .dataTables_scroll {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Style for the DataTables scroll body */
+    .dataTables_scrollBody {
+        border-bottom: none !important;
+    }
+    
+    /* Style for the scrollbar */
+    ::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+</script>
+<div class="container">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Test Results</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-folder me-1"></i>
+                    Select Test Result
+                </div>
+                <div class="card-body">
+                    {% if test_folders %}
+                    <div class="mb-3">
+                        <label for="testFolderSelect" class="form-label">Select a test result folder:</label>
+                        <div class="input-group">
+                            <select class="form-select" id="testFolderSelect">
+                                <option value="" selected disabled>-- Select a test result --</option>
+                                {% for folder in test_folders %}
+                                <option value="{{ folder.id }}" 
+                                        data-modified="{{ folder.modified }}">
+                                    {{ folder.name }} ({{ folder.modified }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-primary" type="button" id="viewResultsBtn">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="testResultInfo" class="mt-4" style="display: none;">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <i class="bi bi-speedometer2 me-1"></i>
+                                Performance Metrics (Last 10 Test Runs)
+                            </div>
+                            <div class="card-body">
+                                <!-- Replace the existing table section with this -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="metricsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Metric</th>
+                                                <!-- Column headers will be added by JavaScript -->
+                                            </tr>
+                                        </thead>
+                                        <tbody id="metricsBody">
+                                            <!-- Rows will be added by JavaScript -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        No test result folders found in the generated_tests directory.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const folderSelect = document.getElementById('testFolderSelect');
+    const viewResultsBtn = document.getElementById('viewResultsBtn');
+    const testResultInfo = document.getElementById('testResultInfo');
+    const metricsBody = document.getElementById('metricsBody');
+    
+    // Function to load JTL metrics
+    // Replace the loadJtlMetrics function with this:
+    function loadJtlMetrics(folderId) {
+        metricsBody.innerHTML = '<tr><td colspan="100%" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+        
+        fetch(`/api/test-results/${folderId}/jtl-metrics`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load metrics');
+                }
+                
+                if (data.metrics.length === 0) {
+                    metricsBody.innerHTML = '<tr><td colspan="100%" class="text-center">No metrics data available</td></tr>';
+                    return;
+                }
+                
+                // Define the metrics we want to show and their display names
+                const metricsConfig = [
+                    { key: 'timestamp', name: 'Timestamp', format: 'text' },
+                    { key: 'tps', name: 'Transactions per Second', format: 'number' },
+                    { key: 'avg_response_time', name: 'Average Response Time (ms)', format: 'number' },
+                    { key: 'median_response_time', name: 'Median Response Time (ms)', format: 'number' },
+                    { key: 'p95_response_time', name: '95th Percentile (ms)', format: 'number' },
+                    { key: 'p99_response_time', name: '99th Percentile (ms)', format: 'number' },
+                    { key: 'error_rate', name: 'Error Rate (%)', format: 'percent' },
+                    { key: 'active_threads', name: 'Active Threads', format: 'number' },
+                    { key: 'throughput', name: 'Throughput (KB/s)', format: 'number' },
+                    { key: 'latency', name: 'Latency (ms)', format: 'number' }
+                ];
+                
+                // Clear the table
+                const thead = document.querySelector('#metricsTable thead tr');
+                const tbody = document.querySelector('#metricsTable tbody');
+                thead.innerHTML = '<th>Metric</th>';
+                tbody.innerHTML = '';
+                
+                // Add timestamp headers
+                data.metrics.forEach((metric, index) => {
+                    const th = document.createElement('th');
+                    th.textContent = metric.timestamp || `Run ${index + 1}`;
+                    thead.appendChild(th);
+                });
+                
+                // Add metrics rows
+                metricsConfig.forEach(config => {
+                    const row = document.createElement('tr');
+                    
+                    // Add metric name
+                    const metricNameCell = document.createElement('td');
+                    metricNameCell.textContent = config.name;
+                    metricNameCell.classList.add('fw-bold');
+                    row.appendChild(metricNameCell);
+                    
+                    // Add metric values
+                    data.metrics.forEach(metric => {
+                        const cell = document.createElement('td');
+                        const value = metric[config.key];
+                        
+                        // Format the value based on its type
+                        if (value === undefined || value === null) {
+                            cell.textContent = 'N/A';
+                        } else if (config.format === 'number') {
+                            cell.textContent = Number(value).toFixed(2);
+                        } else if (config.format === 'percent') {
+                            cell.textContent = `${Number(value).toFixed(2)}%`;
+                            if (Number(value) > 0) {
+                                cell.classList.add('text-danger', 'fw-bold');
+                            }
+                        } else {
+                            cell.textContent = value;
+                        }
+                        
+                        row.appendChild(cell);
+                    });
+                    
+                    tbody.appendChild(row);
+                });
+                
+                // Initialize DataTable with horizontal scrolling
+                if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#metricsTable')) {
+                    $('#metricsTable').DataTable({
+                        scrollX: true,
+                        paging: false,
+                        ordering: false,
+                        searching: false,
+                        info: false
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading metrics:', error);
+                metricsBody.innerHTML = `<tr><td colspan="100%" class="text-danger">Error loading metrics: ${error.message}</td></tr>`;
+            });
+    }
+    
+    // Handle view button click
+    viewResultsBtn.addEventListener('click', function() {
+        const selectedFolder = folderSelect.value;
+        if (!selectedFolder) return;
+        
+        testResultInfo.style.display = 'block';
+        loadJtlMetrics(selectedFolder);
+    });
+    
+    // Enable view button when a folder is selected
+    folderSelect.addEventListener('change', function() {
+        viewResultsBtn.disabled = !this.value;
+    });
+});
+</script>
+
+<style>
+    #metricsTable th, #metricsTable td {
+        font-size: 0.85rem;
+        padding: 0.5rem;
+        white-space: nowrap;
+    }
+
+    #metricsTable th {
+        background-color: #f8f9fa;
+    }
+
+    .table-responsive {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .badge {
+        font-size: 0.75em;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}Upload - Swagger API Viewer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Upload Swagger/OpenAPI Files</h2>
+            <p class="text-muted mb-0">Upload one or more Swagger/OpenAPI JSON or YAML files to view their documentation</p>
+        </div>
+        <button id="cleanupBtn" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i> Cleanup Generated Tests
+        </button>
+    </div>
+    
+    <div class="upload-section">
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}" id="uploadForm">
+            <div class="mb-3">
+                <input type="file" class="form-control" name="files" id="files" accept=".json,.yaml,.yml" multiple required>
+                <div class="form-text">Select one or more files (JSON/YAML)</div>
+            </div>
+            <button class="btn btn-primary" type="submit" id="uploadButton">
+                <i class="bi bi-upload me-2"></i>Upload Files
+            </button>
+            <div id="fileList" class="mt-3"></div>
+        </form>
+    </div>
+    
+    <div class="mt-4">
+        <h5>Uploaded Files</h5>
+        <div class="list-group" id="uploadedFiles">
+            {% for file in files %}
+            <div class="list-group-item" data-filename="{{ file }}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold">{{ file }}</span>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary save-config" 
+                                onclick="saveConfig('{{ file }}')">
+                            <i class="bi bi-save me-1"></i>Save
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteFile('{{ file }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm protocol" data-filename="{{ file }}">
+                            <option value="https">HTTPS</option>
+                            <option value="http">HTTP</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" class="form-control form-control-sm host" 
+                            data-filename="{{ file }}" 
+                            placeholder="example.com">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" class="form-control form-control-sm port" 
+                            data-filename="{{ file }}" 
+                            placeholder="Port (optional)">
+                    </div>
+                </div>
+                <div class="save-status text-success small mt-1" style="display: none;">
+                    <i class="bi bi-check-circle"></i> Configuration saved
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">No files uploaded yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Show selected file names
+const fileInput = document.getElementById('files');
+const fileList = document.getElementById('fileList');
+
+// Load saved configurations when the page loads
+async function loadSavedConfigs() {
+    try {
+        const response = await fetch('/api/get-server-configs');
+        if (!response.ok) {
+            throw new Error('Failed to load configurations');
+        }
+        const configs = await response.json();
+        
+        // Apply each config to the corresponding file row
+        for (const [filename, config] of Object.entries(configs)) {
+            const container = document.querySelector(`.list-group-item[data-filename="${filename}"]`);
+            if (container) {
+                if (config.protocol) {
+                    const protocolSelect = container.querySelector('.protocol');
+                    if (protocolSelect) {
+                        protocolSelect.value = config.protocol;
+                    }
+                }
+                if (config.host) {
+                    const hostInput = container.querySelector('.host');
+                    if (hostInput) {
+                        hostInput.value = config.host;
+                    }
+                }
+                if (config.port) {
+                    const portInput = container.querySelector('.port');
+                    if (portInput) {
+                        portInput.value = config.port;
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading configurations:', error);
+    }
+}
+
+// Call this when the page loads
+document.addEventListener('DOMContentLoaded', loadSavedConfigs);
+
+// Save server configuration
+async function saveConfig(filename) {
+    // Find the container for this specific file
+    const container = document.querySelector(`.list-group-item[data-filename="${filename}"]`);
+    if (!container) {
+        console.error('Could not find container for file:', filename);
+        return;
+    }
+    
+    const protocol = container.querySelector('.protocol').value;
+    const host = container.querySelector('.host').value.trim();
+    const port = container.querySelector('.port').value.trim() || null;
+    
+    if (!host) {
+        alert('Please enter a host');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/save-server-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                filename: filename,
+                protocol: protocol,
+                host: host,
+                port: port
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            const statusElement = container.querySelector('.save-status');
+            if (!statusElement) {
+                // Create status element if it doesn't exist
+                const status = document.createElement('div');
+                status.className = 'save-status text-success small mt-1';
+                status.innerHTML = '<i class="bi bi-check-circle"></i> Configuration saved';
+                container.appendChild(status);
+                statusElement = status;
+            }
+            statusElement.style.display = 'block';
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        } else {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+    } catch (error) {
+        console.error('Error saving configuration:', error);
+        alert('Error: ' + (error.message || 'Failed to save configuration'));
+    }
+}
+
+// Load saved configuration when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // This would be populated from the server in a real implementation
+    // For now, we'll just initialize with empty values
+    document.querySelectorAll('.list-group-item').forEach(item => {
+        const protocol = item.querySelector('.protocol');
+        const host = item.querySelector('.host');
+        const port = item.querySelector('.port');
+        
+        // Set default values
+        if (protocol) protocol.value = 'https';
+        if (host) host.value = '';
+        if (port) port.value = '';
+    });
+});
+
+fileInput.addEventListener('change', function() {
+    fileList.innerHTML = '';
+    if (this.files.length > 0) {
+        const list = document.createElement('ul');
+        list.className = 'list-unstyled';
+        
+        for (let i = 0; i < this.files.length; i++) {
+            const item = document.createElement('li');
+            item.className = 'text-muted small';
+            item.innerHTML = `<i class="bi bi-file-earmark-text"></i> ${this.files[i].name}`;
+            list.appendChild(item);
+        }
+        
+        fileList.appendChild(list);
+    }
+});
+
+// Handle file deletion
+function deleteFile(filename) {
+    if (confirm(`Are you sure you want to delete ${filename}?`)) {
+        fetch(`/api/files/${encodeURIComponent(filename)}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Error deleting file: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting file');
+        });
+    }
+}
+
+// Handle cleanup button click
+document.getElementById('cleanupBtn')?.addEventListener('click', function() {
+    if (!confirm('Are you sure you want to delete all generated test files? This action cannot be undone.')) {
+        return;
+    }
+
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    fetch('/api/cleanup_tests', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        const toast = new bootstrap.Toast(document.getElementById('successToast'));
+        const toastBody = document.querySelector('#successToast .toast-body');
+        if (toastBody) {
+            toastBody.textContent = data.message || 'All generated test files have been deleted.';
+            toast.show();
+        }
+    })
+    .catch(error => {
+        console.error('Error cleaning up test files:', error);
+        const toast = new bootstrap.Toast(document.getElementById('errorToast'));
+        const toastBody = document.querySelector('#errorToast .toast-body');
+        if (toastBody) {
+            toastBody.textContent = 'Failed to clean up test files. Please try again.';
+            toast.show();
+        }
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
+});
+
+// Handle form submission
+const uploadForm = document.getElementById('uploadForm');
+const uploadButton = document.getElementById('uploadButton');
+
+uploadForm.addEventListener('submit', function(e) {
+    const files = fileInput.files;
+    if (files.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one file to upload.');
+        return;
+    }
+    
+    // Disable button and show loading state
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+});
+</script>
+{% endblock %}

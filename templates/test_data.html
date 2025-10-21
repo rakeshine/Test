@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+
+{% block title %}Test Data - Swagger API Viewer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .test-data-section {
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    .section-header {
+        background-color: #f8f9fa;
+        padding: 0.75rem 1.25rem;
+        border-bottom: 1px solid #dee2e6;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .section-header h5 {
+        margin: 0;
+        font-weight: 500;
+    }
+    .section-header .badge {
+        font-size: 0.8rem;
+    }
+    .section-content {
+        padding: 1.25rem;
+        background-color: #fff;
+    }
+    .file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f1f1;
+    }
+    .file-item:last-child {
+        border-bottom: none;
+    }
+    .file-info {
+        flex-grow: 1;
+    }
+    .file-actions {
+        margin-left: 1rem;
+        white-space: nowrap;
+    }
+    .file-size {
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-left: 0.5rem;
+    }
+    .file-modified {
+        color: #6c757d;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+    .no-data {
+        color: #6c757d;
+        font-style: italic;
+        text-align: center;
+        padding: 2rem;
+    }
+    #filterInput {
+        margin-bottom: 1.5rem;
+    }
+    .section-header {
+        background-color: #f8f9fa;
+        padding: 0.5rem 1.25rem;
+        border-bottom: 1px solid #dee2e6;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .section-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .archive-btn {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+    }
+    .archive-spinner {
+        display: none;
+        width: 1rem;
+        height: 1rem;
+        margin-right: 0.5rem;
+        border-width: 0.15em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Test Data</h1>
+</div>
+
+<div class="container">
+    <div class="mb-3">
+        <input type="text" id="filterInput" class="form-control" placeholder="Filter test data...">
+    </div>
+
+    {% if test_data %}
+        {% for folder, files in test_data.items() %}
+            <div class="test-data-section" data-folder="{{ folder }}">
+                <div class="section-header" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="true">
+                    <h5>{{ folder }}</h5>
+                    <div class="section-header-actions">
+                        <button class="btn btn-sm btn-outline-secondary archive-btn" 
+                               data-folder="{{ folder }}"
+                               title="Archive this test run">
+                            <span class="spinner-border spinner-border-sm archive-spinner" role="status" aria-hidden="true"></span>
+                            <i class="bi bi-archive"></i> Archive Last Run
+                        </button>
+                        <span class="badge bg-secondary">{{ files|length }} file{% if files|length != 1 %}s{% endif %}</span>
+                    </div>
+                </div>
+                <div id="collapse-{{ loop.index }}" class="section-content collapse show">
+                    {% for file in files %}
+                        {% if file.name.endswith('.csv') %}
+                        <div class="file-item">
+                            <div class="file-info">
+                                <div>
+                                    <i class="bi {% if file.name.endswith('.jmx') %}bi-file-earmark-code{% elif file.name.endswith('.csv') %}bi-file-earmark-spreadsheet{% else %}bi-file-earmark{% endif %}"></i>
+                                    {{ file.relative_path }}
+                                    <span class="file-size">({{ (file.size / 1024)|round(2) }} KB)</span>
+                                </div>
+                                <div class="file-modified">
+                                    <i class="bi bi-clock"></i> {{ file.modified }}
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <button class="btn btn-sm btn-outline-primary edit-csv" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#editCsvModal"
+                                        data-filename="{{ file.name }}"
+                                        data-filepath="{{ folder }}/{{ file.relative_path }}">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <a href="{{ url_for('static', filename='generated_tests/' + folder + '/' + file.relative_path) }}" 
+                                   class="btn btn-sm btn-outline-secondary ms-1" 
+                                   download>
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            No test data found. Generate some test data first by creating and running test scenarios.
+        </div>
+    {% endif %}
+    <!-- Edit CSV Modal -->
+    <div class="modal fade" id="editCsvModal" tabindex="-1" aria-labelledby="editCsvModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCsvModalLabel">Edit CSV File</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive" style="max-height: 70vh; overflow: auto;">
+                        <table class="table table-bordered table-hover table-striped" id="csv-table">
+                            <thead class="table-light sticky-top">
+                                <tr id="header-row"></tr>
+                            </thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-2 bg-light border-top">
+                        <button type="button" class="btn btn-sm btn-success" id="add-row-btn">
+                            <i class="bi bi-plus-circle"></i> Add Row
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveCsvChanges">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    #csv-table {
+        width: 100%;
+        margin-bottom: 0;
+    }
+    #csv-table th, #csv-table td {
+        min-width: 100px;
+        max-width: 300px;
+        vertical-align: middle;
+        position: relative;
+    }
+    #csv-table th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+    }
+    .action-buttons {
+        white-space: nowrap;
+    }
+    .action-buttons .btn {
+        padding: 0.15rem 0.3rem;
+        font-size: 0.8rem;
+        line-height: 1;
+    }
+    .editable-cell {
+        width: 100%;
+        border: none;
+        background: transparent;
+        padding: 0.25rem 0.5rem;
+    }
+    .editable-cell:focus {
+        outline: 2px solid #86b7fe;
+        background: white;
+    }
+</style>
+<script>
+    // Initialize variables in global scope
+    let currentData = [];
+    let headers = [];
+    let currentFilePath = '';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalElement = document.getElementById('editCsvModal');
+        const modal = modalElement ? new bootstrap.Modal(modalElement) : null;
+        const tableBody = document.getElementById('table-body');
+        const headerRow = document.getElementById('header-row');
+        const addRowBtn = document.getElementById('add-row-btn');
+        const filterInput = document.getElementById('filterInput');
+        const testSections = document.querySelectorAll('.test-data-section');
+        
+        // Store original content to restore when filtering is cleared
+        const originalContents = new Map();
+        testSections.forEach(section => {
+            originalContents.set(section, section.innerHTML);
+        });
+
+        // Function to create an editable cell
+        function createEditableCell(value, isHeader = false) {
+            const cell = document.createElement(isHeader ? 'th' : 'td');
+            if (isHeader) {
+                cell.scope = 'col';
+                cell.textContent = value || `Column ${headerRow.children.length + 1}`;
+                return cell;
+            }
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'editable-cell';
+            input.value = value || '';
+            cell.appendChild(input);
+            return cell;
+        }
+        
+        // Function to create action buttons for a row
+        function createActionButtons(rowIndex) {
+            const cell = document.createElement('td');
+            cell.className = 'action-buttons';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-danger';
+            deleteBtn.title = 'Delete';
+            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            deleteBtn.onclick = () => deleteRow(rowIndex);
+            
+            cell.appendChild(deleteBtn);
+            return cell;
+        }
+        
+        // Function to add a new row
+        function addNewRow(data = null) {
+            const rowData = data || new Array(headers.length).fill('');
+            if (data === null) {
+                currentData.push([...rowData]);
+            }
+            renderTable();
+            
+            // Focus the first cell of the new row if it's a new empty row
+            if (data === null) {
+                const rows = tableBody.querySelectorAll('tr');
+                const lastRow = rows[rows.length - 1];
+                if (lastRow) {
+                    const firstInput = lastRow.querySelector('input');
+                    if (firstInput) firstInput.focus();
+                }
+            }
+        }
+        
+        // Function to update a row (kept for backward compatibility, not used directly)
+        function updateRow(rowIndex) {
+            const row = tableBody.children[rowIndex];
+            const inputs = row.querySelectorAll('input');
+            currentData[rowIndex] = Array.from(inputs).map(input => input.value);
+        }
+        
+        // Function to delete a row
+        function deleteRow(rowIndex) {
+            if (confirm('Are you sure you want to delete this row?')) {
+                // Remove the row from the data
+                currentData.splice(rowIndex, 1);
+                
+                // Re-render the entire table to ensure consistency
+                renderTable();
+            }
+        }
+        
+        // Function to render the table
+        function renderTable() {
+            // Clear existing rows
+            tableBody.innerHTML = '';
+            
+            // Add data rows
+            currentData.forEach((rowData, index) => {
+                const row = document.createElement('tr');
+                
+                // Add data cells
+                rowData.forEach((cell, cellIndex) => {
+                    const cellElement = createEditableCell(cell);
+                    // Update data on input change
+                    if (cellElement.firstChild) {
+                        cellElement.firstChild.addEventListener('input', (e) => {
+                            currentData[index][cellIndex] = e.target.value;
+                        });
+                    }
+                    row.appendChild(cellElement);
+                });
+                
+                // Add delete button
+                const actionCell = document.createElement('td');
+                actionCell.className = 'action-buttons';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-sm btn-danger';
+                deleteBtn.title = 'Delete';
+                deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                deleteBtn.onclick = () => deleteRow(index);
+                actionCell.appendChild(deleteBtn);
+                row.appendChild(actionCell);
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Handle modal show event
+        if (modal) {
+            modalElement.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const fileName = button.getAttribute('data-filename');
+                const filePath = button.getAttribute('data-filepath');
+                currentFilePath = filePath;
+                
+                document.getElementById('editCsvModalLabel').textContent = `Edit ${fileName}`;
+                
+                // Load the CSV file using our custom endpoint
+                fetch(`/generated_tests/${filePath}`)
+                    .then(response => response.text())
+                    .then(csvData => {
+                        // Parse CSV to array using pipe as delimiter
+                        const rows = csvData.split('\n')
+                        .filter(row => row.trim() !== '')
+                        .map(row => {
+                            // Split by pipe and handle quoted values
+                            const fields = row.split('|').map(field => {
+                                // Remove surrounding quotes if present
+                                field = field.trim();
+                                if ((field.startsWith('"') && field.endsWith('"')) || 
+                                    (field.startsWith("'") && field.endsWith("'"))) {
+                                    field = field.slice(1, -1);
+                                }
+                                return field;
+                            });
+
+                            // Process each field to handle JSON
+                            return fields.map(field => {
+                                field = field.trim();
+                                // Check if the field looks like JSON
+                                if ((field.startsWith('{') && field.endsWith('}')) || 
+                                    (field.startsWith('[') && field.endsWith(']'))) {
+                                    try {
+                                        // Clean and format JSON
+                                        const cleaned = field.replace(/""/g, '"');
+                                        console.log(cleaned);
+                                        return JSON.stringify(JSON.parse(cleaned), null, 2);
+                                    } catch (e) {
+                                        console.warn('Could not parse JSON, using as-is:', field);
+                                        return field;
+                                    }
+                                }
+                                return field;
+                            });
+                        });
+                        
+                        if (rows.length === 0) {
+                            console.warn('No data found in CSV');
+                            return;
+                        }
+
+                        // Set headers and data
+                        headers = rows[0];
+                        currentData = rows.slice(1);
+                        
+                        // Clear and rebuild the table
+                        headerRow.innerHTML = '';
+                        tableBody.innerHTML = '';
+                        
+                        // Add header cells
+                        headers.forEach(header => {
+                            headerRow.appendChild(createEditableCell(header, true));
+                        });
+                        // Add empty header for action buttons
+                        const actionHeader = document.createElement('th');
+                        actionHeader.className = 'action-buttons';
+                        actionHeader.textContent = 'Actions';
+                        headerRow.appendChild(actionHeader);
+                        
+                        // Add data rows
+                        currentData.forEach((row, index) => {
+                            addNewRow(row);
+                        });
+                        
+                        // Set up add row button
+                        addRowBtn.onclick = () => addNewRow();
+                    });
+            });
+            
+            // Handle save button click
+            document.getElementById('saveCsvChanges').addEventListener('click', function() {
+                // Convert current data to CSV with pipe delimiter
+                const escapeCsvField = (field) => {
+                    if (field === null || field === undefined) return '';
+                    const str = String(field);
+                    if (str.includes('|') || str.includes('"') || str.includes('\n') || str.includes(',')) {
+                        return `"${str.replace(/"/g, '""')}"`;
+                    }
+                    return str;
+                };
+                
+                const csvContent = [
+                    headers.map(escapeCsvField).join('|'),
+                    ...currentData.map(row => 
+                        row.map(escapeCsvField).join('|')
+                    )
+                ].join('\n');
+                
+                // Show loading state
+                const saveButton = this;
+                const originalButtonText = saveButton.innerHTML;
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+                
+                // Send the updated CSV to the server
+                const encodedPath = encodeURIComponent(currentFilePath);
+                fetch(`/save_csv?path=${encodedPath}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: csvContent
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text || 'Failed to save file');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (modal) {
+                        modal.hide();
+                    }
+                    alert('success', 'CSV file saved successfully!');
+                })
+                .catch(error => {
+                    console.error('Error saving CSV file:', error);
+                    alert('error', 'Error saving CSV file: ' + error.message);
+                })
+                .finally(() => {
+                    // Reset button state
+                    if (saveButton) {
+                        saveButton.disabled = false;
+                        saveButton.innerHTML = originalButtonText;
+                    }
+                });
+            });
+        }
+
+        // Initialize filter functionality
+        filterInput.addEventListener('input', function() {
+            const searchTerm = this.value.trim().toLowerCase();
+            
+            testSections.forEach(section => {
+                const sectionContent = originalContents.get(section);
+                
+                if (searchTerm === '') {
+                    // Restore original content when search is cleared
+                    section.innerHTML = sectionContent;
+                    section.style.display = '';
+                    return;
+                }
+                
+                const folder = section.getAttribute('data-folder').toLowerCase();
+                let hasMatch = false;
+                
+                // Check if folder name matches
+                if (folder.includes(searchTerm)) {
+                    hasMatch = true;
+                    section.style.display = '';
+                } else {
+                    // Create a temporary div to hold the original content
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = sectionContent;
+                    
+                    // Get all file items
+                    const files = tempDiv.querySelectorAll('.file-item');
+                    let visibleFiles = 0;
+                    
+                    // Check each file
+                    files.forEach(file => {
+                        const fileName = file.textContent.toLowerCase();
+                        if (fileName.includes(searchTerm)) {
+                            file.style.display = '';
+                            visibleFiles++;
+                        } else {
+                            file.style.display = 'none';
+                        }
+                    });
+                    
+                    hasMatch = visibleFiles > 0;
+                    
+                    if (hasMatch) {
+                        // Replace the section content with filtered content
+                        section.innerHTML = tempDiv.innerHTML;
+                    }
+                }
+                
+                // Show/hide section based on match
+                section.style.display = hasMatch ? '' : 'none';
+            });
+        });
+    });
+</script>
+
+<script>
+    // Handle archive button clicks
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.archive-btn').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.stopPropagation(); // Prevent collapse toggle
+                const folder = this.dataset.folder;
+                const spinner = this.querySelector('.archive-spinner');
+                
+                if (confirm(`Are you sure you want to archive the test run "${folder}"?`)) {
+                    try {
+                        // Show loading state
+                        this.disabled = true;
+                        spinner.style.display = 'inline-block';
+                        
+                        const response = await fetch('/api/archive-test-run', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ folder: folder })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            alert('success', result.message || 'Test run archived successfully');
+                            // Reload the page after a short delay to show the toast
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            throw new Error(result.error || 'Failed to archive test run');
+                        }
+                    } catch (error) {
+                        console.error('Error archiving test run:', error);
+                        alert('danger', 'Error: ' + (error.message || 'Failed to archive test run'));
+                    } finally {
+                        // Reset button state
+                        this.disabled = false;
+                        spinner.style.display = 'none';
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
