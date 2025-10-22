@@ -80,17 +80,6 @@
         align-items: center;
         gap: 0.5rem;
     }
-    .archive-btn {
-        font-size: 0.8rem;
-        padding: 0.2rem 0.5rem;
-    }
-    .archive-spinner {
-        display: none;
-        width: 1rem;
-        height: 1rem;
-        margin-right: 0.5rem;
-        border-width: 0.15em;
-    }
 </style>
 {% endblock %}
 
@@ -110,12 +99,6 @@
                 <div class="section-header" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="true">
                     <h5>{{ folder }}</h5>
                     <div class="section-header-actions">
-                        <button class="btn btn-sm btn-outline-secondary archive-btn" 
-                               data-folder="{{ folder }}"
-                               title="Archive this test run">
-                            <span class="spinner-border spinner-border-sm archive-spinner" role="status" aria-hidden="true"></span>
-                            <i class="bi bi-archive"></i> Archive Last Run
-                        </button>
                         <span class="badge bg-secondary">{{ files|length }} file{% if files|length != 1 %}s{% endif %}</span>
                     </div>
                 </div>
@@ -556,49 +539,5 @@
     });
 </script>
 
-<script>
-    // Handle archive button clicks
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.archive-btn').forEach(btn => {
-            btn.addEventListener('click', async function(e) {
-                e.stopPropagation(); // Prevent collapse toggle
-                const folder = this.dataset.folder;
-                const spinner = this.querySelector('.archive-spinner');
-                
-                if (confirm(`Are you sure you want to archive the test run "${folder}"?`)) {
-                    try {
-                        // Show loading state
-                        this.disabled = true;
-                        spinner.style.display = 'inline-block';
-                        
-                        const response = await fetch('/api/archive-test-run', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ folder: folder })
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (response.ok) {
-                            alert('success', result.message || 'Test run archived successfully');
-                            // Reload the page after a short delay to show the toast
-                            setTimeout(() => window.location.reload(), 1500);
-                        } else {
-                            throw new Error(result.error || 'Failed to archive test run');
-                        }
-                    } catch (error) {
-                        console.error('Error archiving test run:', error);
-                        alert('danger', 'Error: ' + (error.message || 'Failed to archive test run'));
-                    } finally {
-                        // Reset button state
-                        this.disabled = false;
-                        spinner.style.display = 'none';
-                    }
-                }
-            });
-        });
-    });
-</script>
+
 {% endblock %}

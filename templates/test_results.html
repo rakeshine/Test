@@ -2,7 +2,119 @@
 
 {% block title %}Test Results - Swagger API Viewer{% endblock %}
 
+{% block extra_css %}
+<!-- Tablesorter CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/css/theme.bootstrap_4.min.css">
+<style>
+    #statisticsTable {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+    #statisticsTable th {
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+    }
+    #statisticsTable tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    #statisticsTable .tablesorter-header {
+        cursor: pointer;
+    }
+    #statisticsTable .tablesorter-header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    #statisticsTable .tablesorter-headerDesc .tablesorter-icon,
+    #statisticsTable .tablesorter-headerAsc .tablesorter-icon {
+        opacity: 1;
+    }
+    #statisticsTable .table-active {
+        background-color: #f8f9fa;
+    }
+    #statisticsTable .table-danger {
+        background-color: #fff5f5;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- JTL File Viewer Modal -->
+<div class="modal fade" id="jtlViewerModal" tabindex="-1" aria-labelledby="jtlViewerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="jtlViewerModalLabel">Test Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="container-fluid p-0">
+                    <div class="table-responsive">
+                        <table id="statisticsTable" class="table table-bordered table-sm table-hover" style="font-size: 0.85rem;">
+                            <colgroup>
+                                <col style="width: 15%;">
+                                <col style="width: 6%;">
+                                <col style="width: 4%;">
+                                <col style="width: 5%;">
+                                <col style="width: 6%;">
+                                <col style="width: 4%;">
+                                <col style="width: 4%;">
+                                <col style="width: 5%;">
+                                <col style="width: 6%;">
+                                <col style="width: 6%;">
+                                <col style="width: 6%;">
+                                <col style="width: 8%;">
+                                <col style="width: 7%;">
+                                <col style="width: 5%;">
+                            </colgroup>
+                            <thead class="table-light">
+                                <tr>
+                                    <th rowspan="2">Label</th>
+                                    <th colspan="3" class="text-center">Executions</th>
+                                    <th colspan="7" class="text-center">Response Times (ms)</th>
+                                    <th rowspan="2">Transactions/s</th>
+                                    <th colspan="2" class="text-center">Network (KB/sec)</th>
+                                </tr>
+                                <tr>
+                                    <th>#Samples</th>
+                                    <th>FAIL</th>
+                                    <th>Error %</th>
+                                    <th>Average</th>
+                                    <th>Min</th>
+                                    <th>Max</th>
+                                    <th>Median</th>
+                                    <th>90th pct</th>
+                                    <th>95th pct</th>
+                                    <th>99th pct</th>
+                                    <th>Received</th>
+                                    <th>Sent</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jtlStatisticsBody">
+                                <tr>
+                                    <td colspan="14" class="text-center">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="downloadJtlBtn">
+                    <i class="bi bi-download"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <script type="text/css">
     #metricsTable {
         font-size: 0.85rem;
@@ -97,8 +209,11 @@
                                 </option>
                                 {% endfor %}
                             </select>
+                            <button class="btn btn-primary" type="button" id="addResultsBtn">
+                                <i class="bi bi-eye"></i> Upload JTL
+                            </button>
                             <button class="btn btn-primary" type="button" id="viewResultsBtn">
-                                <i class="bi bi-eye"></i> View
+                                <i class="bi bi-eye"></i> View / Refresh
                             </button>
                         </div>
                     </div>
@@ -137,6 +252,10 @@
         </div>
     </div>
 </div>
+    <!-- Hidden file input for JTL uploads -->
+    <input type="file" id="jtlFileInput" accept=".jtl" style="display: none;">
+</div>  <!-- Close container div -->
+
 {% endblock %}
 
 {% block extra_js %}
@@ -187,10 +306,252 @@ document.addEventListener('DOMContentLoaded', function() {
                 thead.innerHTML = '<th>Metric</th>';
                 tbody.innerHTML = '';
                 
-                // Add timestamp headers
+                // Add timestamp headers with view buttons
                 data.metrics.forEach((metric, index) => {
                     const th = document.createElement('th');
-                    th.textContent = metric.timestamp || `Run ${index + 1}`;
+                    
+                    // Create container for header content
+                    const headerContent = document.createElement('div');
+                    headerContent.style.display = 'flex';
+                    headerContent.style.flexDirection = 'column';
+                    headerContent.style.alignItems = 'center';
+                    
+                    // Add timestamp
+                    const timestampSpan = document.createElement('span');
+                    timestampSpan.textContent = metric.timestamp || `Run ${index + 1}`;
+                    timestampSpan.style.marginBottom = '5px';
+                    
+                    // Add view button
+                    const viewBtn = document.createElement('button');
+                    viewBtn.className = 'btn btn-sm btn-outline-primary';
+                    viewBtn.style.padding = '0.1rem 0.4rem';
+                    viewBtn.style.fontSize = '0.7rem';
+                    viewBtn.innerHTML = '<i class="bi bi-eye"></i> Show';
+                    viewBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        const folderSelect = document.getElementById('testFolderSelect');
+                        const folderId = folderSelect ? folderSelect.value : 'combo';
+                        const fileName = metric.file_name || `results_${metric.timestamp || index + 1}.jtl`;
+                        
+                        // Get modal elements
+                        const modalElement = document.getElementById('jtlViewerModal');
+                        if (!modalElement) {
+                            console.error('Modal element not found');
+                            return;
+                        }
+                        
+                        const modal = new bootstrap.Modal(modalElement);
+                        const modalTitle = modalElement.querySelector('.modal-title');
+                        const jtlStatisticsBody = modalElement.querySelector('#jtlStatisticsBody');
+                        const downloadBtn = modalElement.querySelector('#downloadJtlBtn');
+                        
+                        if (!modalTitle || !jtlStatisticsBody || !downloadBtn) {
+                            console.error('One or more required elements not found in modal');
+                            return;
+                        }
+                        
+                        // Update modal content
+                        modalTitle.textContent = `JTL File: ${fileName}`;
+                        jtlStatisticsBody.innerHTML = `
+                            <tr>
+                                <td colspan="14" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>`;
+                        
+                        // Set up download handler
+                        downloadBtn.onclick = function() {
+                            window.location.href = `/test-results/${folderId}/view-jtl?file=${encodeURIComponent(fileName)}&download=true`;
+                        };
+                        
+                        // Show the modal first
+                        modal.show();
+                        // Fetch and display JTL data
+                        fetch(`/test-results/${folderId}/view-jtl?file=${encodeURIComponent(fileName)}&json=true`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    return response.text().then(text => {
+                                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+                                    });
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    // Parse JTL data and display in table format
+                                    try {
+                                        const lines = data.content.split('\n').filter(line => line.trim());
+                                        if (lines.length <= 1) {
+                                            throw new Error('No data rows found');
+                                        }
+                                        
+                                        // Parse headers and data
+                                        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                                        const rows = lines.slice(1).filter(line => line.trim()).map(line => {
+                                            const values = line.split(',');
+                                            const row = {};
+                                            headers.forEach((header, i) => {
+                                                row[header] = values[i] ? values[i].trim() : '';
+                                            });
+                                            return row;
+                                        });
+                                        
+                                        // Group by label
+                                        const groups = {};
+                                        rows.forEach(row => {
+                                            const label = row.label || 'Unknown';
+                                            if (!groups[label]) {
+                                                groups[label] = [];
+                                            }
+                                            groups[label].push(row);
+                                        });
+                                        
+                                        // Calculate statistics for each group
+                                        const statistics = [];
+                                        for (const [label, group] of Object.entries(groups)) {
+                                            const samples = group.length;
+                                            const failures = group.filter(r => r.success === 'false').length;
+                                            const errorRate = (failures / samples * 100).toFixed(2) + '%';
+                                            const elapsedTimes = group.map(r => parseInt(r.elapsed || 0));
+                                            const bytes = group.map(r => parseInt(r.bytes || 0));
+                                            const sentBytes = group.map(r => parseInt(r.sentbytes || 0));
+                                            
+                                            // Calculate percentiles
+                                            const sortedTimes = [...elapsedTimes].sort((a, b) => a - b);
+                                            const p90 = sortedTimes[Math.ceil(sortedTimes.length * 0.9) - 1];
+                                            const p95 = sortedTimes[Math.ceil(sortedTimes.length * 0.95) - 1];
+                                            const p99 = sortedTimes[Math.ceil(sortedTimes.length * 0.99) - 1];
+                                            
+                                            statistics.push({
+                                                label,
+                                                samples,
+                                                failures,
+                                                errorRate,
+                                                avg: (elapsedTimes.reduce((a, b) => a + b, 0) / samples).toFixed(2),
+                                                min: Math.min(...elapsedTimes),
+                                                max: Math.max(...elapsedTimes),
+                                                median: sortedTimes[Math.floor(sortedTimes.length / 2)],
+                                                p90,
+                                                p95,
+                                                p99,
+                                                received: (bytes.reduce((a, b) => a + b, 0) / 1024).toFixed(2),
+                                                sent: (sentBytes.reduce((a, b) => a + b, 0) / 1024).toFixed(2),
+                                                tps: (samples / (parseInt(group[group.length-1].timeStamp || 1000) / 1000)).toFixed(2)
+                                            });
+                                        }
+                                        
+                                        // Calculate totals
+                                        const totalSamples = statistics.reduce((sum, stat) => sum + stat.samples, 0);
+                                        const totalFailures = statistics.reduce((sum, stat) => sum + stat.failures, 0);
+                                        const totalErrorRate = totalSamples > 0 ? (totalFailures / totalSamples * 100).toFixed(2) + '%' : '0%';
+                                        
+                                        // Render the statistics table
+                                        const tbody = document.getElementById('jtlStatisticsBody');
+                                        tbody.innerHTML = '';
+                                        
+                                        // Add total row
+                                        const totalRow = document.createElement('tr');
+                                        totalRow.className = 'table-active fw-bold';
+                                        totalRow.innerHTML = `
+                                            <td>Total</td>
+                                            <td>${totalSamples}</td>
+                                            <td>${totalFailures}</td>
+                                            <td>${totalErrorRate}</td>
+                                            <td>${(statistics.reduce((sum, stat) => sum + parseFloat(stat.avg) * stat.samples, 0) / totalSamples || 0).toFixed(2)}</td>
+                                            <td>${statistics.length ? Math.min(...statistics.map(stat => stat.min)) : 0}</td>
+                                            <td>${statistics.length ? Math.max(...statistics.map(stat => stat.max)) : 0}</td>
+                                            <td>-</td>
+                                            <td>-</td>
+                                            <td>-</td>
+                                            <td>-</td>
+                                            <td>${statistics.reduce((sum, stat) => sum + parseFloat(stat.tps || 0), 0).toFixed(2)}</td>
+                                            <td>${statistics.reduce((sum, stat) => sum + parseFloat(stat.received || 0), 0).toFixed(2)}</td>
+                                            <td>${statistics.reduce((sum, stat) => sum + parseFloat(stat.sent || 0), 0).toFixed(2)}</td>
+                                        `;
+                                        tbody.appendChild(totalRow);
+                                        
+                                        // Add rows for each endpoint
+                                        statistics.forEach(stat => {
+                                            const row = document.createElement('tr');
+                                            row.innerHTML = `
+                                                <td>${stat.label}</td>
+                                                <td>${stat.samples}</td>
+                                                <td>${stat.failures}</td>
+                                                <td>${stat.errorRate}</td>
+                                                <td>${stat.avg}</td>
+                                                <td>${stat.min}</td>
+                                                <td>${stat.max}</td>
+                                                <td>${stat.median}</td>
+                                                <td>${stat.p90}</td>
+                                                <td>${stat.p95}</td>
+                                                <td>${stat.p99}</td>
+                                                <td>${stat.tps}</td>
+                                                <td>${stat.received}</td>
+                                                <td>${stat.sent}</td>
+                                            `;
+                                            if (stat.failures > 0) {
+                                                row.classList.add('table-danger');
+                                            }
+                                            tbody.appendChild(row);
+                                        });
+                                        
+                                        // Initialize table sorting if tablesorter is available
+                                        if (typeof $.fn.tablesorter !== 'undefined') {
+                                            try {
+                                                const $table = $('#statisticsTable');
+                                                if ($table.length) {
+                                                    $table.tablesorter({
+                                                        theme: 'bootstrap',
+                                                        headerTemplate: '{content} {icon}',
+                                                        widgets: ['zebra', 'columns'],
+                                                        sortList: [[0, 0]],
+                                                        widgetOptions: {
+                                                            zebra: ['even', 'odd']
+                                                        }
+                                                    });
+                                                }
+                                            } catch (e) {
+                                                console.error('Error initializing tablesorter:', e);
+                                            }
+                                        }
+                                        
+                                    } catch (error) {
+                                        console.error('Error parsing JTL data:', error);
+                                        document.getElementById('jtlStatisticsBody').innerHTML = `
+                                            <tr>
+                                                <td colspan="14" class="text-danger text-center">
+                                                    Error parsing JTL data: ${error.message}
+                                                </td>
+                                            </tr>`;
+                                    }
+                                    
+                                } else {
+                                    jtlStatisticsBody.innerHTML = `
+                                        <tr>
+                                            <td colspan="14" class="text-danger text-center">
+                                                ${data.error || 'Error loading statistics'}
+                                            </td>
+                                        </tr>`;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error loading JTL data:', error);
+                                jtlStatisticsBody.innerHTML = `
+                                    <tr>
+                                        <td colspan="14" class="text-danger text-center">
+                                            Error loading statistics: ${error.message}
+                                        </td>
+                                    </tr>`;
+                            });
+                        
+                    };
+                    
+                    // Append elements to header
+                    headerContent.appendChild(timestampSpan);
+                    headerContent.appendChild(viewBtn);
+                    th.appendChild(headerContent);
                     thead.appendChild(th);
                 });
                 
@@ -249,19 +610,112 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Handle view button click
-    viewResultsBtn.addEventListener('click', function() {
-        const selectedFolder = folderSelect.value;
-        if (!selectedFolder) return;
-        
-        testResultInfo.style.display = 'block';
-        loadJtlMetrics(selectedFolder);
-    });
+    // Get references to elements
+    const addResultsBtn = document.getElementById('addResultsBtn');
+    const jtlFileInput = document.getElementById('jtlFileInput');
+    
+    console.log('DOM Elements:', { addResultsBtn, jtlFileInput, folderSelect, viewResultsBtn });
+    
+    // Only add event listeners if elements exist
+    if (viewResultsBtn) {
+        // Handle view button click
+        viewResultsBtn.addEventListener('click', function() {
+            const selectedFolder = folderSelect ? folderSelect.value : null;
+            if (!selectedFolder) {
+                alert('Please select a folder first');
+                return;
+            }
+            testResultInfo.style.display = 'block';
+            loadJtlMetrics(selectedFolder);
+        });
+    }
+    
+    // Only add event listeners if elements exist
+    if (addResultsBtn) {
+        console.log('Adding click handler to addResultsBtn');
+        // Handle add results button click
+        addResultsBtn.addEventListener('click', function(e) {
+            console.log('Add results button clicked');
+            const selectedFolder = folderSelect ? folderSelect.value : null;
+            console.log('Selected folder:', selectedFolder);
+            
+            if (!selectedFolder) {
+                console.log('No folder selected');
+                alert('Please select a folder first');
+                return;
+            }
+            
+            if (jtlFileInput) {
+                console.log('Triggering file input click');
+                jtlFileInput.click();
+            } else {
+                console.error('jtlFileInput not found');
+            }
+        });
+    }
+
+    // Handle file selection
+    if (jtlFileInput) {
+        jtlFileInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const selectedFolder = folderSelect ? folderSelect.value : null;
+            if (!selectedFolder) {
+                alert('Please select a folder first');
+                return;
+            }
+
+            // Create FormData and append the file
+            const formData = new FormData();
+            formData.append('jtl_file', file);
+            formData.append('folder', selectedFolder);
+
+            // Show loading state
+            const originalBtnText = addResultsBtn ? addResultsBtn.innerHTML : '';
+            if (addResultsBtn) {
+                addResultsBtn.disabled = true;
+                addResultsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+            }
+
+            try {
+                const response = await fetch('/api/upload-jtl', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('JTL file uploaded successfully');
+                    // Refresh the results if the test result info is visible
+                    if (testResultInfo && testResultInfo.style.display === 'block') {
+                        loadJtlMetrics(selectedFolder);
+                    }
+                } else {
+                    throw new Error(result.error || 'Failed to upload JTL file');
+                }
+            } catch (error) {
+                console.error('Error uploading JTL file:', error);
+                alert('Error: ' + (error.message || 'Failed to upload JTL file'));
+            } finally {
+                // Reset button state if addResultsBtn exists
+                if (addResultsBtn) {
+                    addResultsBtn.disabled = false;
+                    addResultsBtn.innerHTML = originalBtnText;
+                }
+                // Reset file input
+                e.target.value = '';
+            }
+        });
+    }
     
     // Enable view button when a folder is selected
-    folderSelect.addEventListener('change', function() {
-        viewResultsBtn.disabled = !this.value;
-    });
+    if (folderSelect && viewResultsBtn) {
+        folderSelect.addEventListener('change', function() {
+            viewResultsBtn.disabled = !this.value;
+        });
+    }
 });
 </script>
 

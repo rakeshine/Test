@@ -1,0 +1,856 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "FakeRESTApi.Web V1",
+    "version": "v1",
+    "x-server-config": {
+      "protocol": "https",
+      "host": "fakerestapi.azurewebsites.net",
+      "port": null
+    }
+  },
+  "paths": {
+    "/api/v1/Activities": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/Activity"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "Activities"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/Activity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Activity"
+            }
+          }
+        },
+        "tags": [
+          "Activities"
+        ]
+      }
+    },
+    "/api/v1/Activities/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Activities"
+        ]
+      },
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Activity"
+            }
+          }
+        },
+        "tags": [
+          "Activities"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/Activity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Activity"
+            }
+          }
+        },
+        "tags": [
+          "Activities"
+        ]
+      }
+    },
+    "/api/v1/Authors": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/Author"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "Authors"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/Author"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Author"
+            }
+          }
+        },
+        "tags": [
+          "Authors"
+        ]
+      }
+    },
+    "/api/v1/Authors/authors/books/{idBook}": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "idBook",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/Author"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "Authors"
+        ]
+      }
+    },
+    "/api/v1/Authors/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Authors"
+        ]
+      },
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Author"
+            }
+          }
+        },
+        "tags": [
+          "Authors"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/Author"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Author"
+            }
+          }
+        },
+        "tags": [
+          "Authors"
+        ]
+      }
+    },
+    "/api/v1/Books": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/Book"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "Books"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/Book"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Books"
+        ]
+      }
+    },
+    "/api/v1/Books/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Books"
+        ]
+      },
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Book"
+            }
+          }
+        },
+        "tags": [
+          "Books"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/Book"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Books"
+        ]
+      }
+    },
+    "/api/v1/CoverPhotos": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/CoverPhoto"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "CoverPhotos"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/CoverPhoto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/CoverPhoto"
+            }
+          }
+        },
+        "tags": [
+          "CoverPhotos"
+        ]
+      }
+    },
+    "/api/v1/CoverPhotos/books/covers/{idBook}": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "idBook",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/CoverPhoto"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "CoverPhotos"
+        ]
+      }
+    },
+    "/api/v1/CoverPhotos/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "CoverPhotos"
+        ]
+      },
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/CoverPhoto"
+            }
+          }
+        },
+        "tags": [
+          "CoverPhotos"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/CoverPhoto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/CoverPhoto"
+            }
+          }
+        },
+        "tags": [
+          "CoverPhotos"
+        ]
+      }
+    },
+    "/api/v1/Users": {
+      "get": {
+        "produces": [
+          "text/plain; v=1.0",
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "items": {
+                "$ref": "#/definitions/User"
+              },
+              "type": "array"
+            }
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/Users/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json; v=1.0",
+          "text/json; v=1.0"
+        ],
+        "parameters": [
+          {
+            "format": "int32",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "Activity": {
+      "additionalProperties": false,
+      "properties": {
+        "completed": {
+          "type": "boolean"
+        },
+        "dueDate": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "id": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "title": {
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "type": "object"
+    },
+    "Author": {
+      "additionalProperties": false,
+      "properties": {
+        "firstName": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "id": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "idBook": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "lastName": {
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "type": "object"
+    },
+    "Book": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "excerpt": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "id": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "pageCount": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "publishDate": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "type": "object"
+    },
+    "CoverPhoto": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "idBook": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "type": "object"
+    },
+    "User": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "password": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "userName": {
+          "type": "string",
+          "x-nullable": true
+        }
+      },
+      "type": "object"
+    }
+  },
+  "x-components": {}
+}

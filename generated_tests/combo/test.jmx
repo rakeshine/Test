@@ -1,0 +1,381 @@
+<?xml version="1.0" ?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="API Test" enabled="true">
+      <stringProp name="TestPlan.comments">Auto-generated Test Plan</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <stringProp name="TestPlan.user_define_classpath"/>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="threads" elementType="Argument">
+            <stringProp name="Argument.name">threads</stringProp>
+            <stringProp name="Argument.value">${__P(threads, 10)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="rampup" elementType="Argument">
+            <stringProp name="Argument.name">rampup</stringProp>
+            <stringProp name="Argument.value">${__P(rampup, 10)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="duration" elementType="Argument">
+            <stringProp name="Argument.name">duration</stringProp>
+            <stringProp name="Argument.value">${__P(duration, 10)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="loopCount" elementType="Argument">
+            <stringProp name="Argument.name">loopCount</stringProp>
+            <stringProp name="Argument.value">${__P(loopCount, 1)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="api_key" elementType="Argument">
+            <stringProp name="Argument.name">api_key</stringProp>
+            <stringProp name="Argument.value">REPLACE_WITH_KEY</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="auth_token" elementType="Argument">
+            <stringProp name="Argument.name">auth_token</stringProp>
+            <stringProp name="Argument.value">REPLACE_WITH_TOKEN</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="pct_petstore_v2_pet_post" elementType="Argument">
+            <stringProp name="Argument.name">pct_petstore_v2_pet_post</stringProp>
+            <stringProp name="Argument.value">20.0</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="testdata.petstore_v2_pet_post" elementType="Argument">
+            <stringProp name="Argument.name">testdata.petstore_v2_pet_post</stringProp>
+            <stringProp name="Argument.value">${__P(testdata.petstore_v2_pet_post, petstore_v2_pet_post.csv)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="pct_petstore_v2_pet_put" elementType="Argument">
+            <stringProp name="Argument.name">pct_petstore_v2_pet_put</stringProp>
+            <stringProp name="Argument.value">20.0</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="testdata.petstore_v2_pet_put" elementType="Argument">
+            <stringProp name="Argument.name">testdata.petstore_v2_pet_put</stringProp>
+            <stringProp name="Argument.value">${__P(testdata.petstore_v2_pet_put, petstore_v2_pet_put.csv)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="pct_petstore_v2_pet_findByStatus_get" elementType="Argument">
+            <stringProp name="Argument.name">pct_petstore_v2_pet_findByStatus_get</stringProp>
+            <stringProp name="Argument.value">20.0</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="testdata.petstore_v2_pet_findByStatus_get" elementType="Argument">
+            <stringProp name="Argument.name">testdata.petstore_v2_pet_findByStatus_get</stringProp>
+            <stringProp name="Argument.value">${__P(testdata.petstore_v2_pet_findByStatus_get, petstore_v2_pet_findByStatus_get.csv)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="pct_fakestore_api_v1_Books_get" elementType="Argument">
+            <stringProp name="Argument.name">pct_fakestore_api_v1_Books_get</stringProp>
+            <stringProp name="Argument.value">20.0</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="testdata.fakestore_api_v1_Books_get" elementType="Argument">
+            <stringProp name="Argument.name">testdata.fakestore_api_v1_Books_get</stringProp>
+            <stringProp name="Argument.value">${__P(testdata.fakestore_api_v1_Books_get, fakestore_api_v1_Books_get.csv)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="pct_fakestore_api_v1_Books_post" elementType="Argument">
+            <stringProp name="Argument.name">pct_fakestore_api_v1_Books_post</stringProp>
+            <stringProp name="Argument.value">20.0</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+          <elementProp name="testdata.fakestore_api_v1_Books_post" elementType="Argument">
+            <stringProp name="Argument.name">testdata.fakestore_api_v1_Books_post</stringProp>
+            <stringProp name="Argument.value">${__P(testdata.fakestore_api_v1_Books_post, fakestore_api_v1_Books_post.csv)}</stringProp>
+            <stringProp name="Argument.desc"/>
+            <stringProp name="Argument.metadata"/>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Test Load Group" enabled="true">
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${loopCount}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">${threads}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${rampup}</stringProp>
+        <stringProp name="ThreadGroup.duration">${duration}</stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Accept</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Content-Type</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="petstore_v2_pet_post" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentThroughput">${pct_petstore_v2_pet_post}</stringProp>
+          <boolProp name="ThroughputController.perThread">false</boolProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /v2/pet" enabled="true">
+            <stringProp name="HTTPSampler.path">/v2/pet</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <stringProp name="HTTPSampler.domain">petstore.swagge.io</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="body" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.name"/>
+                  <stringProp name="Argument.value">${body_cleaned}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Data - petstore_v2_pet_post" enabled="true">
+              <stringProp name="filename">${testdata.petstore_v2_pet_post}</stringProp>
+              <stringProp name="fileEncoding">UTF-8</stringProp>
+              <stringProp name="delimiter">|</stringProp>
+              <boolProp name="ignoreFirstLine">true</boolProp>
+            </CSVDataSet>
+            <hashTree/>
+            <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Clean JSON Body" enabled="true">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script">// Get the CSV variable
+def body = vars.get("body")
+
+if (body != null) {
+    // Remove leading and trailing double quotes if present
+    body = body.replaceAll(/^"/, "").replaceAll(/"$/, "")
+
+    // Replace all internal double double-quotes with single double-quote
+    body = body.replaceAll(/""/, '"')
+
+    // Save back to a new JMeter variable
+    vars.put("body_cleaned", body)
+}</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+            </JSR223PreProcessor>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="petstore_v2_pet_put" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentThroughput">${pct_petstore_v2_pet_put}</stringProp>
+          <boolProp name="ThroughputController.perThread">false</boolProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="PUT /v2/pet" enabled="true">
+            <stringProp name="HTTPSampler.path">/v2/pet</stringProp>
+            <stringProp name="HTTPSampler.method">PUT</stringProp>
+            <stringProp name="HTTPSampler.domain">petstore.swagge.io</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="body" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.name"/>
+                  <stringProp name="Argument.value">${body_cleaned}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Data - petstore_v2_pet_put" enabled="true">
+              <stringProp name="filename">${testdata.petstore_v2_pet_put}</stringProp>
+              <stringProp name="fileEncoding">UTF-8</stringProp>
+              <stringProp name="delimiter">|</stringProp>
+              <boolProp name="ignoreFirstLine">true</boolProp>
+            </CSVDataSet>
+            <hashTree/>
+            <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Clean JSON Body" enabled="true">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script">// Get the CSV variable
+def body = vars.get("body")
+
+if (body != null) {
+    // Remove leading and trailing double quotes if present
+    body = body.replaceAll(/^"/, "").replaceAll(/"$/, "")
+
+    // Replace all internal double double-quotes with single double-quote
+    body = body.replaceAll(/""/, '"')
+
+    // Save back to a new JMeter variable
+    vars.put("body_cleaned", body)
+}</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+            </JSR223PreProcessor>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="petstore_v2_pet_findByStatus_get" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentThroughput">${pct_petstore_v2_pet_findByStatus_get}</stringProp>
+          <boolProp name="ThroughputController.perThread">false</boolProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /v2/pet/findByStatus" enabled="true">
+            <stringProp name="HTTPSampler.path">/v2/pet/findByStatus</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <stringProp name="HTTPSampler.domain">petstore.swagge.io</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="status" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.name">status</stringProp>
+                  <stringProp name="Argument.value">${status}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Data - petstore_v2_pet_findByStatus_get" enabled="true">
+              <stringProp name="filename">${testdata.petstore_v2_pet_findByStatus_get}</stringProp>
+              <stringProp name="fileEncoding">UTF-8</stringProp>
+              <stringProp name="delimiter">|</stringProp>
+              <boolProp name="ignoreFirstLine">true</boolProp>
+            </CSVDataSet>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="fakestore_api_v1_Books_get" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentThroughput">${pct_fakestore_api_v1_Books_get}</stringProp>
+          <boolProp name="ThroughputController.perThread">false</boolProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/v1/Books" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/v1/Books</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <stringProp name="HTTPSampler.domain">fakerestapi.azurewebsites.net</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Data - fakestore_api_v1_Books_get" enabled="true">
+              <stringProp name="filename">${testdata.fakestore_api_v1_Books_get}</stringProp>
+              <stringProp name="fileEncoding">UTF-8</stringProp>
+              <stringProp name="delimiter">|</stringProp>
+              <boolProp name="ignoreFirstLine">true</boolProp>
+            </CSVDataSet>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="fakestore_api_v1_Books_post" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentThroughput">${pct_fakestore_api_v1_Books_post}</stringProp>
+          <boolProp name="ThroughputController.perThread">false</boolProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/v1/Books" enabled="true">
+            <stringProp name="HTTPSampler.path">/api/v1/Books</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <stringProp name="HTTPSampler.domain">fakerestapi.azurewebsites.net</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="body" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.name"/>
+                  <stringProp name="Argument.value">${body_cleaned}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Data - fakestore_api_v1_Books_post" enabled="true">
+              <stringProp name="filename">${testdata.fakestore_api_v1_Books_post}</stringProp>
+              <stringProp name="fileEncoding">UTF-8</stringProp>
+              <stringProp name="delimiter">|</stringProp>
+              <boolProp name="ignoreFirstLine">true</boolProp>
+            </CSVDataSet>
+            <hashTree/>
+            <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Clean JSON Body" enabled="true">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script">// Get the CSV variable
+def body = vars.get("body")
+
+if (body != null) {
+    // Remove leading and trailing double quotes if present
+    body = body.replaceAll(/^"/, "").replaceAll(/"$/, "")
+
+    // Replace all internal double double-quotes with single double-quote
+    body = body.replaceAll(/""/, '"')
+
+    // Save back to a new JMeter variable
+    vars.put("body_cleaned", body)
+}</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+            </JSR223PreProcessor>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
