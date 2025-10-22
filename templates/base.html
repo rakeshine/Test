@@ -98,6 +98,12 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link {% if active_page == 'services' %}active{% endif %}" href="{{ url_for('list_services') }}">
+                                <i class="bi bi-boxes"></i>
+                                Services
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link {% if active_page == 'endpoints' %}active{% endif %}" href="{{ url_for('endpoints') }}">
                                 <i class="bi bi-list-ul"></i>
                                 Endpoints
@@ -107,12 +113,6 @@
                             <a class="nav-link {% if active_page == 'scenarios' %}active{% endif %}" href="{{ url_for('list_scenarios') }}">
                                 <i class="bi bi-collection"></i>
                                 Scenarios
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {% if active_page == 'services' %}active{% endif %}" href="{{ url_for('list_services') }}">
-                                <i class="bi bi-boxes"></i>
-                                Services
                             </a>
                         </li>
                         <li class="nav-item">

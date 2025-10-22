@@ -34,16 +34,17 @@ app.secret_key = "your-secret-key-here"  # Change this to a secure secret key
 
 # File and Directory Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input")
-TEST_FOLDER = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "generated_tests"
-)
+SCENARIOS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios")
+TEST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated_tests")
+TEST_RESULTS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_results")
+
 ALLOWED_EXTENSIONS = {"json", "yaml", "yml"}
 
 # Ensure required directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(SCENARIOS_FOLDER, exist_ok=True)
 os.makedirs(TEST_FOLDER, exist_ok=True)
-os.makedirs("scenarios", exist_ok=True)
-os.makedirs("test_results", exist_ok=True)
+os.makedirs(TEST_RESULTS_FOLDER, exist_ok=True)
 
 # App Configuration
 app.config.update(
