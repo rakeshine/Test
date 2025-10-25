@@ -110,11 +110,12 @@ function handleGenerateClick(e) {
             'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
+            type: 'scenario',
             scenario_name: scenarioName
         })
     };
     
-    fetch('/api/generate_tests', requestData)
+    fetch('/api/generate_test_scripts', requestData)
     .then(response => {
         if (!response.ok) {
             return response.json().then(err => { 

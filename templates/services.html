@@ -84,10 +84,14 @@ function handleGenerateServiceClick(e) {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
 
-  fetch('/api/generate_tests_for_service', {
+  fetch('/api/generate_test_scripts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    body: JSON.stringify({ service_filename: filename })
+    body: JSON.stringify({
+      type: 'service',
+      service: filename,
+      scenario_name: filename.split('.')[0]  // Use filename without extension as scenario name
+    })
   })
   .then(r => {
     if (!r.ok) return r.json().then(j => { throw j; });

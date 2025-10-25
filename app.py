@@ -35,8 +35,12 @@ app.secret_key = "your-secret-key-here"  # Change this to a secure secret key
 # File and Directory Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input")
 SCENARIOS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios")
-TEST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated_tests")
-TEST_RESULTS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_results")
+TEST_FOLDER = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "generated_tests"
+)
+TEST_RESULTS_FOLDER = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "test_results"
+)
 
 ALLOWED_EXTENSIONS = {"json", "yaml", "yml"}
 
@@ -56,6 +60,7 @@ app.config.update(
 # ====================================
 # Utility Functions
 # ====================================
+
 
 def resolve_refs(spec, root=None, visited_refs=None):
     """Recursively resolve $refs in the OpenAPI/Swagger specification.
@@ -504,7 +509,7 @@ def get_jtl_metrics(folder_id):
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         test_results_dir = os.path.join(base_dir, "test_results", folder_id)
-        
+
         if not os.path.exists(test_results_dir):
             return jsonify({"error": "Test results not found"}), 404
 
@@ -517,7 +522,9 @@ def get_jtl_metrics(folder_id):
 
         # Get metrics for each JTL file
         metrics_list = []
-        for jtl_file in sorted(jtl_files, key=os.path.getmtime, reverse=True)[:10]:  # Get 10 most recent
+        for jtl_file in sorted(jtl_files, key=os.path.getmtime, reverse=True)[
+            :10
+        ]:  # Get 10 most recent
             metrics = parse_jtl_file(jtl_file)
             if metrics:
                 metrics["file_name"] = os.path.basename(jtl_file)
@@ -540,11 +547,13 @@ def test_results():
     try:
         # Create test_results directory if it doesn't exist
         os.makedirs(test_results_dir, exist_ok=True)
-        
+
         # Get all test result directories
         for item in os.listdir(test_results_dir):
             item_path = os.path.join(test_results_dir, item)
-            if os.path.isdir(item_path) and not item.startswith("."):  # Skip hidden directories
+            if os.path.isdir(item_path) and not item.startswith(
+                "."
+            ):  # Skip hidden directories
                 # Get modification time
                 modified = datetime.fromtimestamp(os.path.getmtime(item_path)).strftime(
                     "%Y-%m-%d %H:%M:%S"
@@ -800,90 +809,78 @@ def list_services():
     return render_template("services.html", services=services, active_page="services")
 
 
-@app.route("/api/generate_tests_for_endpoint", methods=["POST"])
-def generate_tests_for_endpoint():
-    """Generate JMX and CSV test files for a single endpoint."""
+@app.route("/api/generate_test_scripts", methods=["POST"])
+def generate_test_scripts():
+    """Unified endpoint for test generation.
+
+    Request body should contain one of:
+    1. For single endpoint:
+        {"type": "endpoint", "service": "filename", "method": "GET", "path": "/api/endpoint"}
+    2. For service:
+        {"type": "service", "service": "filename", "scenario_name": "optional_name"}
+    3. For scenario:
+        {"type": "scenario", "scenario_data": {...}}
+    """
     data = request.get_json() or {}
-    endpoint_id = data.get("endpoint_id")
-    if not endpoint_id:
-        return jsonify({"error": "endpoint_id is required"}), 400
+    test_type = data.get("type")
 
     try:
-        # Parse the endpoint ID (format: "filename:method:path")
-        if isinstance(endpoint_id, dict):
-            # If endpoint_id is already an object with the required fields
-            service_filename = endpoint_id.get("file")
-            method = endpoint_id.get("method")
-            path = endpoint_id.get("path")
+        if test_type == "endpoint":
+            # Handle single endpoint
+            service = data.get("service")
+            method = data.get("method")
+            path = data.get("path")
+            if not all([service, method, path]):
+                return (
+                    jsonify(
+                        {
+                            "error": "For type 'endpoint', 'service', 'method', and 'path' are required"
+                        }
+                    ),
+                    400,
+                )
+            scenario_data = _build_scenario_from_endpoint(service, method, path)
+            scenario_name = (
+                f"{service}_{method.lower()}_{path.replace('/', '_').strip('_')}"
+            )
+
+        elif test_type == "service":
+            # Handle service
+            service = data.get("service")
+            if not service:
+                return (
+                    jsonify({"error": "For type 'service', 'service' is required"}),
+                    400,
+                )
+            scenario_data = _build_scenario_from_service(service)
+            scenario_name = data.get(
+                "scenario_name", scenario_data.get("name", service)
+            )
+
+        elif test_type == "scenario":
+            # Handle full scenario
+            scenario_name = data.get("scenario_name")
+            if not scenario_name:
+                return jsonify({"error": "Scenario name is required"}), 400
+            # Get the scenario file
+            scenario_file = Path("scenarios") / f"{scenario_name}.json"
+            if not scenario_file.exists():
+                return jsonify({"error": "Scenario not found"}), 404
+            # Load scenario data
+            with open(scenario_file, "r") as f:
+                scenario_data = json.load(f)
+
         else:
-            # If endpoint_id is a string in format "filename:method:path"
-            parts = endpoint_id.split(":", 2)
-            if len(parts) != 3:
-                return jsonify({"error": "Invalid endpoint_id format"}), 400
-            service_filename, method, path = parts
-
-        if not all([service_filename, method, path]):
-            return jsonify({"error": "Missing required fields in endpoint_id"}), 400
-        scenario_data = _build_scenario_from_endpoint(service_filename, method, path)
-        scenario_name = scenario_data["name"]
-
-        # Create scenario-specific output directory with CSV filename
-        safe_csv_name = f"{service_filename.split('.')[0]}_{method.lower()}_{path.replace('/', '_').strip('_')}"
-        scenario_dir = Path(__file__).parent / "generated_tests" / safe_csv_name
-        scenario_dir.mkdir(parents=True, exist_ok=True)
-
-        test_results_dir = Path(__file__).parent / "test_results" / safe_csv_name
-        test_results_dir.mkdir(parents=True, exist_ok=True)
-
-        # Ensure the output directory exists
-        scenario_dir.mkdir(parents=True, exist_ok=True)
-
-        try:
-            result = generate_from_scenario(
-                scenario_data=scenario_data,
-                uploads_dir=app.config["UPLOAD_FOLDER"],
-                output_dir=str(scenario_dir),
+            return (
+                jsonify(
+                    {
+                        "error": "Invalid type. Must be one of: 'endpoint', 'service', 'scenario'"
+                    }
+                ),
+                400,
             )
 
-            saved_files = result.get("files", [])
-            if not saved_files:
-                return jsonify({"error": "No files were generated"}), 500
-
-            saved_files = result.get("files", [])
-            jmx_path = result.get("jmx")
-            return jsonify(
-                {
-                    "success": True,
-                    "message": f"Test files generated successfully for service {service_filename}",
-                    "files": saved_files,
-                    "jmx": jmx_path,
-                    "output_dir": str(scenario_dir.absolute()),
-                }
-            )
-
-        except Exception as e:
-            app.logger.error(f"Error generating test files: {str(e)}")
-            return jsonify({"error": f"Failed to generate test files: {str(e)}"}), 500
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/generate_tests_for_service", methods=["POST"])
-def generate_tests_for_service():
-    """Generate JMX and CSV test files for a single service (swagger file)."""
-    data = request.get_json() or {}
-    service_filename = data.get("service_filename")
-    scenario_name = data.get("scenario_name")
-    if not service_filename:
-        return jsonify({"error": "service_filename is required"}), 400
-
-    try:
-        scenario_data = _build_scenario_from_service(service_filename)
-        if scenario_name:
-            scenario_data["name"] = scenario_name
-        scenario_name = scenario_data["name"]
-
-        # Create scenario-specific output directory
+        # Common test generation logic
         scenario_dir = Path(__file__).parent / "generated_tests" / scenario_name
         scenario_dir.mkdir(parents=True, exist_ok=True)
 
@@ -895,26 +892,20 @@ def generate_tests_for_service():
             uploads_dir=app.config["UPLOAD_FOLDER"],
             output_dir=str(scenario_dir),
         )
-        saved_files = result.get("files", [])
-        jmx_path = result.get("jmx")
+
         return jsonify(
             {
                 "success": True,
-                "message": f"Test files generated successfully for service {service_filename}",
-                "files": saved_files,
-                "jmx": jmx_path,
+                "message": f"Test files generated successfully for {test_type}",
+                "files": result.get("files", []),
+                "jmx": result.get("jmx"),
                 "output_dir": str(scenario_dir.absolute()),
             }
         )
-    except Exception as e:
-        import traceback
 
-        return (
-            jsonify(
-                {"success": False, "error": str(e), "trace": traceback.format_exc()}
-            ),
-            500,
-        )
+    except Exception as e:
+        app.logger.error(f"Error generating tests: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/scenarios/<scenario_name>", methods=["DELETE"])
@@ -1107,127 +1098,139 @@ def serve_generated_file(filename):
 def view_jtl_file(folder_id):
     """Serve JTL file content for viewing or as JSON."""
     try:
-        file_name = request.args.get('file')
-        download = request.args.get('download', '').lower() == 'true'
-        as_json = request.args.get('json', '').lower() == 'true'
-        
+        file_name = request.args.get("file")
+        download = request.args.get("download", "").lower() == "true"
+        as_json = request.args.get("json", "").lower() == "true"
+
         if not file_name:
             if as_json:
                 return jsonify({"success": False, "error": "No file specified"}), 400
             return "No file specified", 400
-            
+
         # Prevent directory traversal
-        if '..' in file_name or file_name.startswith('/'):
+        if ".." in file_name or file_name.startswith("/"):
             if as_json:
                 return jsonify({"success": False, "error": "Invalid file path"}), 400
             return "Invalid file path", 400
-            
+
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        
+
         # First try the exact folder_id, then try 'combo' as fallback
-        possible_paths = [
-            os.path.join(base_dir, "test_results", folder_id, file_name)
-        ]
-        
+        possible_paths = [os.path.join(base_dir, "test_results", folder_id, file_name)]
+
         file_path = None
         for path in possible_paths:
             if os.path.isfile(path):
                 file_path = path
                 break
-                
+
         if not file_path:
             error_msg = f"File {file_name} not found in {folder_id} or combo folders"
             app.logger.error(error_msg)
             if as_json:
                 return jsonify({"success": False, "error": error_msg}), 404
             return error_msg, 404
-            
+
         # Read file content
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 content = f.read()
-                
+
             if as_json:
                 # Return as JSON with additional metadata
-                return jsonify({
-                    "success": True,
-                    "file_name": file_name,
-                    "size": os.path.getsize(file_path),
-                    "last_modified": os.path.getmtime(file_path),
-                    "content": content,
-                    "line_count": len(content.splitlines()),
-                    "word_count": len(content.split()),
-                    "character_count": len(content)
-                })
+                return jsonify(
+                    {
+                        "success": True,
+                        "file_name": file_name,
+                        "size": os.path.getsize(file_path),
+                        "last_modified": os.path.getmtime(file_path),
+                        "content": content,
+                        "line_count": len(content.splitlines()),
+                        "word_count": len(content.split()),
+                        "character_count": len(content),
+                    }
+                )
             elif download:
                 # Return as file download
                 return send_file(
                     file_path,
                     as_attachment=True,
                     download_name=file_name,
-                    mimetype='text/plain'
+                    mimetype="text/plain",
                 )
             else:
                 # Return as plain text with proper content type
                 response = make_response(content)
-                response.mimetype = 'text/plain'
+                response.mimetype = "text/plain"
                 return response
-                
+
         except Exception as e:
             app.logger.error(f"Error reading JTL file: {str(e)}")
             if as_json:
-                return jsonify({"success": False, "error": f"Error reading file: {str(e)}"}), 500
+                return (
+                    jsonify(
+                        {"success": False, "error": f"Error reading file: {str(e)}"}
+                    ),
+                    500,
+                )
             return f"Error reading file: {str(e)}", 500
-            
+
     except Exception as e:
         app.logger.error(f"Error in view_jtl_file: {str(e)}")
         if as_json:
             return jsonify({"success": False, "error": f"Server error: {str(e)}"}), 500
         return f"Server error: {str(e)}", 500
+
+
 @app.route("/api/upload-jtl", methods=["POST"])
 def upload_jtl():
     """Handle JTL file uploads and save them with timestamp-based naming."""
     try:
         # Check if the post request has the file part
-        if 'jtl_file' not in request.files:
+        if "jtl_file" not in request.files:
             return jsonify({"success": False, "error": "No file part"}), 400
-            
-        file = request.files['jtl_file']
-        folder_name = request.form.get('folder')
-        
+
+        file = request.files["jtl_file"]
+        folder_name = request.form.get("folder")
+
         # If user does not select file, browser also
         # submit an empty part without filename
-        if file.filename == '':
+        if file.filename == "":
             return jsonify({"success": False, "error": "No selected file"}), 400
-            
+
         if not folder_name:
             return jsonify({"success": False, "error": "No folder specified"}), 400
-            
+
         # Validate file extension
-        if not (file and file.filename.endswith('.jtl')):
-            return jsonify({"success": False, "error": "Only .jtl files are allowed"}), 400
-            
+        if not (file and file.filename.endswith(".jtl")):
+            return (
+                jsonify({"success": False, "error": "Only .jtl files are allowed"}),
+                400,
+            )
+
         # Create the target directory if it doesn't exist
         base_dir = os.path.dirname(os.path.abspath(__file__))
         target_dir = os.path.join(base_dir, "test_results", folder_name)
         os.makedirs(target_dir, exist_ok=True)
-        
+
         # Generate timestamp for the filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"results_{timestamp}.jtl"
         filepath = os.path.join(target_dir, filename)
-        
+
         # Save the file
         file.save(filepath)
-        
+
         app.logger.info(f"JTL file saved to {filepath}")
-        return jsonify({
-            "success": True, 
-            "message": "File uploaded successfully",
-            "filename": filename,
-            "timestamp": timestamp
-        })
-        
+        return jsonify(
+            {
+                "success": True,
+                "message": "File uploaded successfully",
+                "filename": filename,
+                "timestamp": timestamp,
+            }
+        )
+
     except Exception as e:
         app.logger.error(f"Error uploading JTL file: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500

@@ -177,9 +177,9 @@ if (!window.__endpointsScriptInitialized) {
     // Filter functionality
     // ... existing filter code ...
     const apiFilter = document.getElementById('apiFilter');
-const clearFilter = document.getElementById('clearFilter');
-const table = document.getElementById('endpointsTable');
-const rows = table ? table.getElementsByTagName('tr') : [];
+    const clearFilter = document.getElementById('clearFilter');
+    const table = document.getElementById('endpointsTable');
+    const rows = table ? table.getElementsByTagName('tr') : [];
 
 function filterTable() {
     const filter = apiFilter.value.toLowerCase();
@@ -520,15 +520,14 @@ function handleGenerateTest(e) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
 
-    fetch('/api/generate_tests_for_endpoint', {
+    fetch('/api/generate_test_scripts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            endpoint_id: {
-                file: endpointData.file,
-                method: endpointData.method,
-                path: endpointData.path
-            }
+            type: 'endpoint',
+            service: endpointData.file,
+            method: endpointData.method,
+            path: endpointData.path
         })
     })
     .then(r => r.ok ? r.json() : r.json().then(err => Promise.reject(err)))
