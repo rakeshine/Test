@@ -33,14 +33,9 @@ app = Flask(__name__, static_folder="static")
 app.secret_key = "your-secret-key-here"  # Change this to a secure secret key
 
 # File and Directory Configuration
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input")
-SCENARIOS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios")
-TEST_FOLDER = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "generated_tests"
-)
-TEST_RESULTS_FOLDER = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "test_results"
-)
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "db", "swagger_files")
+SCENARIOS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "db", "scenarios")
+TEST_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "db", "tests")
 
 ALLOWED_EXTENSIONS = {"json", "yaml", "yml"}
 
@@ -48,12 +43,12 @@ ALLOWED_EXTENSIONS = {"json", "yaml", "yml"}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SCENARIOS_FOLDER, exist_ok=True)
 os.makedirs(TEST_FOLDER, exist_ok=True)
-os.makedirs(TEST_RESULTS_FOLDER, exist_ok=True)
 
 # App Configuration
 app.config.update(
     UPLOAD_FOLDER=UPLOAD_FOLDER,
     TEST_FOLDER=TEST_FOLDER,
+    SCENARIOS_FOLDER=SCENARIOS_FOLDER,
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max file size
 )
 
@@ -338,7 +333,7 @@ def parse_jtl_file(jtl_path):
 
 def get_scenarios():
     """Get all saved scenarios from the scenarios directory."""
-    scenarios_dir = Path("scenarios")
+    scenarios_dir = Path(app.config["SCENARIOS_FOLDER"])
     scenarios = []
 
     for scenario_file in scenarios_dir.glob("*.json"):
@@ -507,8 +502,8 @@ def index():
 @app.route("/api/test-results/<folder_id>/jtl-metrics")
 def get_jtl_metrics(folder_id):
     try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        test_results_dir = os.path.join(base_dir, "test_results", folder_id)
+        base_dir = Path(app.config["TEST_FOLDER"])
+        test_results_dir = os.path.join(base_dir, folder_id, "jtl")
 
         if not os.path.exists(test_results_dir):
             return jsonify({"error": "Test results not found"}), 404
@@ -540,8 +535,7 @@ def get_jtl_metrics(folder_id):
 @app.route("/test-results")
 def test_results():
     # Use the project root directory as the base
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    test_results_dir = os.path.join(base_dir, "test_results")
+    test_results_dir = Path(app.config["TEST_FOLDER"])
     test_folders = []
 
     try:
@@ -863,7 +857,7 @@ def generate_test_scripts():
             if not scenario_name:
                 return jsonify({"error": "Scenario name is required"}), 400
             # Get the scenario file
-            scenario_file = Path("scenarios") / f"{scenario_name}.json"
+            scenario_file = Path(app.config["SCENARIOS_FOLDER"]) / f"{scenario_name}.json"
             if not scenario_file.exists():
                 return jsonify({"error": "Scenario not found"}), 404
             # Load scenario data
@@ -881,11 +875,8 @@ def generate_test_scripts():
             )
 
         # Common test generation logic
-        scenario_dir = Path(__file__).parent / "generated_tests" / scenario_name
+        scenario_dir = Path(app.config["TEST_FOLDER"]) / scenario_name
         scenario_dir.mkdir(parents=True, exist_ok=True)
-
-        test_results_dir = Path(__file__).parent / "test_results" / scenario_name
-        test_results_dir.mkdir(parents=True, exist_ok=True)
 
         result = generate_from_scenario(
             scenario_data=scenario_data,
@@ -899,7 +890,7 @@ def generate_test_scripts():
                 "message": f"Test files generated successfully for {test_type}",
                 "files": result.get("files", []),
                 "jmx": result.get("jmx"),
-                "output_dir": str(scenario_dir.absolute()),
+                "output_dir": str(scenario_dir),
             }
         )
 
@@ -913,7 +904,7 @@ def delete_scenario_api(scenario_name: str):
     """Delete a scenario JSON by its base name via API."""
     try:
         safe_name = re.sub(r"[^\w\-]", "_", scenario_name).lower()
-        scenarios_dir = Path("scenarios")
+        scenarios_dir = Path(app.config["SCENARIOS_FOLDER"])
         file_path = scenarios_dir / f"{safe_name}.json"
         if not file_path.exists():
             return jsonify({"success": False, "error": "Scenario not found"}), 404
@@ -921,67 +912,6 @@ def delete_scenario_api(scenario_name: str):
         return jsonify({"success": True, "message": f"Scenario {safe_name} deleted"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/generate_tests", methods=["POST"])
-def generate_tests():
-    """Generate JMX and CSV test files for a scenario."""
-    app.logger.info("Received request to generate tests")
-    try:
-        data = request.get_json()
-        app.logger.info(f"Request data: {data}")
-        scenario_name = data.get("scenario_name")
-        app.logger.info(f"Scenario name: {scenario_name}")
-
-        if not scenario_name:
-            return jsonify({"error": "Scenario name is required"}), 400
-
-        # Get the scenario file
-        scenario_file = Path("scenarios") / f"{scenario_name}.json"
-        if not scenario_file.exists():
-            return jsonify({"error": "Scenario not found"}), 404
-
-        # Load scenario data
-        with open(scenario_file, "r") as f:
-            scenario_data = json.load(f)
-
-        # Create scenario-specific output directory
-        scenario_dir = Path(__file__).parent / "generated_tests" / scenario_name
-        scenario_dir.mkdir(parents=True, exist_ok=True)
-        app.logger.info(f"Output directory: {scenario_dir.absolute()}")
-
-        test_results_dir = Path(__file__).parent / "test_results" / scenario_name
-        test_results_dir.mkdir(parents=True, exist_ok=True)
-        app.logger.info(f"Test results directory: {test_results_dir.absolute()}")
-
-        # Generate from scenario using uploaded swagger files as source
-        result = generate_from_scenario(
-            scenario_data=scenario_data,
-            uploads_dir=app.config["UPLOAD_FOLDER"],
-            output_dir=str(scenario_dir),
-        )
-        saved_files = result.get("files", [])
-        jmx_path = result.get("jmx")
-        app.logger.info(f"Generated files count: {len(saved_files)}; JMX: {jmx_path}")
-
-        # Return success response with file paths
-        return jsonify(
-            {
-                "success": True,
-                "message": f"Test files generated successfully for {scenario_name}",
-                "files": saved_files,
-                "jmx": jmx_path,
-                "output_dir": str(scenario_dir.absolute()),
-            }
-        )
-
-    except Exception as e:
-        import traceback
-
-        error_trace = traceback.format_exc()
-        app.logger.error(f"Error generating tests: {str(e)}\n{error_trace}")
-        return jsonify({"error": str(e), "trace": error_trace}), 500
-
 
 @app.route("/save_scenario", methods=["POST"])
 def save_scenario():
@@ -991,8 +921,7 @@ def save_scenario():
             return jsonify({"error": "Invalid request data"}), 400
 
         # Create scenarios directory if it doesn't exist
-        scenarios_dir = Path("scenarios")
-        scenarios_dir.mkdir(exist_ok=True)
+        scenarios_dir = Path(app.config["SCENARIOS_FOLDER"])
 
         # Create a safe filename from the scenario name
         safe_name = re.sub(r"[^\w\-]", "_", data["name"]).lower()
@@ -1029,9 +958,7 @@ def save_scenario():
 @app.route("/api/cleanup_tests", methods=["POST"])
 def cleanup_tests():
     try:
-        generated_tests_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "generated_tests"
-        )
+        generated_tests_dir = Path(app.config["TEST_FOLDER"])
 
         # Remove all contents of generated_tests directory
         if os.path.exists(generated_tests_dir):
@@ -1057,7 +984,7 @@ def cleanup_tests():
 @app.route("/test-data")
 def test_data():
     """Display all test data organized by folder."""
-    generated_tests_dir = Path("generated_tests")
+    generated_tests_dir = Path(app.config["TEST_FOLDER"])
     test_data = {}
 
     if generated_tests_dir.exists():
@@ -1113,10 +1040,8 @@ def view_jtl_file(folder_id):
                 return jsonify({"success": False, "error": "Invalid file path"}), 400
             return "Invalid file path", 400
 
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-
         # First try the exact folder_id, then try 'combo' as fallback
-        possible_paths = [os.path.join(base_dir, "test_results", folder_id, file_name)]
+        possible_paths = [Path(app.config["TEST_FOLDER"]) / folder_id / file_name]
 
         file_path = None
         for path in possible_paths:
@@ -1209,9 +1134,7 @@ def upload_jtl():
             )
 
         # Create the target directory if it doesn't exist
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        target_dir = os.path.join(base_dir, "test_results", folder_name)
-        os.makedirs(target_dir, exist_ok=True)
+        target_dir = os.path.join(Path(app.config["TEST_FOLDER"]), folder_name)
 
         # Generate timestamp for the filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1248,12 +1171,8 @@ def save_csv():
             return jsonify({"success": False, "error": "No file path provided"}), 400
 
         # Ensure the path is safe and within the generated_tests directory
-        full_path = Path("generated_tests") / file_path
+        full_path = Path(app.config["TEST_FOLDER"]) / file_path
         full_path = full_path.resolve()
-
-        # Security check: ensure the path is within the generated_tests directory
-        if not str(full_path).startswith(str(Path("generated_tests").resolve())):
-            return jsonify({"success": False, "error": "Invalid file path"}), 403
 
         # Create parent directories if they don't exist
         full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1271,6 +1190,4 @@ def save_csv():
 
 if __name__ == "__main__":
     # Create necessary directories if they don't exist
-    os.makedirs("scenarios", exist_ok=True)
-    os.makedirs("generated_tests", exist_ok=True)
     app.run(debug=True, host="0.0.0.0", port=5000)

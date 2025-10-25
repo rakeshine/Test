@@ -131,22 +131,6 @@
 </div>
 {% block extra_js %}
 {{ super() }}
-<!-- Toast containers -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-  <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body"></div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  </div>
-  <div id="errorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body"></div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  </div>
-</div>
-
 <script>
 // Prevent duplicate script execution
 if (!window.__endpointsScriptInitialized) {
@@ -479,7 +463,7 @@ function handleGenerateTest(e) {
         
         // Create HTML content using string concatenation to avoid template literal conflicts
         var htmlContent = '<div>';
-        htmlContent += '<p>Test files for "' + data.scenario_name + '" have been generated successfully.</p>';
+        htmlContent += '<p>Test files for "' + endpointData.path + '" have been generated successfully.</p>';
         htmlContent += '<p class="mb-1">Saved to: <code>' + data.output_dir + '</code></p>';
         htmlContent += '<div class="mt-2">';
         htmlContent += '<button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#fileList">';

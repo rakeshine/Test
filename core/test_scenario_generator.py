@@ -517,14 +517,3 @@ def generate_from_scenario(scenario_data, uploads_dir, output_dir):
     # Collect generated files
     files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, f))]
     return {"jmx": jmx_path, "files": files, "output_dir": output_dir}
-
-
-def main():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    combo = read_json(COMBO_FILE)
-
-    result = generate_from_scenario(combo, os.getcwd(), OUTPUT_DIR)
-    print("✅ Generation complete:", result)
-
-if __name__ == "__main__":
-    main()

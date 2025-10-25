@@ -80,6 +80,18 @@
             display: none;
             margin-top: 0.25rem;
         }
+        .toast-body {
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        .toast-body p {
+            margin: 0.5rem 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .toast-body .btn {
+            white-space: nowrap;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -154,5 +166,21 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     {% block extra_js %}{% endblock %}
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+        <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body"></div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body"></div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
