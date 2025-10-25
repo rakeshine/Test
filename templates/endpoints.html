@@ -1,28 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Endpoints - Swagger API Viewer{% endblock %}
-
 {% block content %}
-<!-- Toast for success messages -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-    <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    </div>
-</div>
-
-<!-- Toast for error messages -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-    <div id="errorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    </div>
-</div>
-
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>API Endpoints</h2>
@@ -59,12 +37,13 @@
         </div>
     </div>
 
+    <!-- Endpoints List Table -->
     <div class="table-responsive">
         <table class="table table-hover align-middle" id="endpointsTable">
             <thead>
                 <tr>
                     <th style="width: 40px;">
-                        <!--<input type="checkbox" class="form-check-input" id="selectAll">-->
+                        &nbsp;
                     </th>
                     <th>Method</th>
                     <th>Path</th>
@@ -113,7 +92,7 @@
     {% endif %}
 </div>
 
-<!-- Endpoint Details Modal -->
+<!-- Endpoint Details Modal Dialog -->
 <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -129,12 +108,12 @@
                     <i class="bi bi-x-circle me-1"></i> Close
                 </button>
             </div>
-            <!-- Schema Modal -->
+            <!-- Schema / Example Modal Dialog -->
             <div class="modal fade" id="schemaModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Endpoint Schema</h5>
+                            <h5 class="modal-title">Placeholder</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
@@ -150,7 +129,6 @@
         </div>
     </div>
 </div>
-
 {% block extra_js %}
 {{ super() }}
 <!-- Toast containers -->
@@ -212,36 +190,7 @@ if (clearFilter) {
     });
 }
 
-// Select all checkboxes
-const selectAllCheckbox = document.getElementById('selectAll');
 const checkboxes = document.getElementsByClassName('endpoint-checkbox');
-
-if (selectAllCheckbox) {
-    selectAllCheckbox.addEventListener('change', function() {
-        const isChecked = this.checked;
-        
-        for (let checkbox of checkboxes) {
-            if (checkbox.closest('tr').style.display !== 'none') {
-                checkbox.checked = isChecked;
-            }
-        }
-    });
-}
-
-// Individual checkbox functionality
-for (let checkbox of checkboxes) {
-    checkbox.addEventListener('change', function() {
-        if (!this.checked && selectAllCheckbox.checked) {
-            selectAllCheckbox.checked = false;
-        } else if (this.checked) {
-            // Check if all visible checkboxes are checked
-            const allChecked = Array.from(checkboxes).every(cb => {
-                return !cb.checked || cb.closest('tr').style.display === 'none';
-            });
-            selectAllCheckbox.checked = allChecked;
-        }
-    });
-}
 
 // Modal functionality
 const detailsModal = document.getElementById('detailsModal');
@@ -387,18 +336,8 @@ if (detailsModal) {
 // Scenario management
 function initializeScenarioManagement() {
     // Handle select all/none
-    const selectAllCheckbox = document.getElementById('selectAll');
     const endpointCheckboxes = document.querySelectorAll('.endpoint-checkbox');
     const scenarioForm = document.getElementById('scenarioForm');
-
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const isChecked = this.checked;
-            endpointCheckboxes.forEach(checkbox => {
-                checkbox.checked = isChecked;
-            });
-        });
-    }
 
     // Handle scenario form submission
     if (scenarioForm) {
@@ -452,9 +391,6 @@ function initializeScenarioManagement() {
                     endpointCheckboxes.forEach(checkbox => {
                         checkbox.checked = false;
                     });
-                    if (selectAllCheckbox) {
-                        selectAllCheckbox.checked = false;
-                    }
                 } else {
                     const error = await response.text();
                     throw new Error(error || 'Failed to save scenario');

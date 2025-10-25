@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Swagger API Viewer{% endblock %}</title>
+    <title>Performance Test Accelerator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
@@ -89,12 +89,12 @@
             <!-- Sidebar -->
             <div class="col-md-3 col-lg-2 d-md-block sidebar">
                 <div class="position-sticky pt-3">
-                    <h5 class="px-3 mb-3">API Viewer</h5>
+                    <h5 class="px-3 mb-3">Menu</h5>
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if active_page == 'upload' %}active{% endif %}" href="{{ url_for('upload') }}">
                                 <i class="bi bi-upload"></i>
-                                Upload
+                                Upload Swagger JSON
                             </a>
                         </li>
                         <li class="nav-item">
@@ -145,10 +145,6 @@
                 {% endwith %}
 
                 {% block content %}{% endblock %}
-                
-                <div class="text-center mt-5 text-muted">
-                    <small>Server Status: <span id="server-status" class="text-success">●</span> <span id="status-time"></span></small>
-                </div>
             </main>
         </div>
     </div>
@@ -157,30 +153,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
-    <script>
-        // Update server status
-        function updateServerStatus() {
-            const statusElement = document.getElementById('server-status');
-            const timeElement = document.getElementById('status-time');
-            
-            fetch('/api/status')
-                .then(response => response.json())
-                .then(data => {
-                    statusElement.className = data.status === 'online' ? 'text-success' : 'text-danger';
-                    statusElement.textContent = '●';
-                    timeElement.textContent = new Date().toLocaleTimeString();
-                })
-                .catch(() => {
-                    statusElement.className = 'text-danger';
-                    statusElement.textContent = '●';
-                    timeElement.textContent = 'Connection error';
-                });
-        }
-
-        // Update status every 30 seconds
-        updateServerStatus();
-        setInterval(updateServerStatus, 30000);
-    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

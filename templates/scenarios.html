@@ -1,16 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Scenarios - Swagger API Viewer{% endblock %}
-
 {% block content %}
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Saved Scenarios</h2>
-        <div>
-            <a href="{{ url_for('endpoints') }}" class="btn btn-primary">
-                <i class="bi bi-arrow-left me-1"></i> Back to Endpoints
-            </a>
-        </div>
     </div>
 
     {% if not scenarios %}
@@ -179,58 +172,7 @@ function handleGenerateClick(e) {
 }
 
 // Initialize when DOM is fully loaded
-// Handle cleanup button click
-document.getElementById('cleanupBtn')?.addEventListener('click', function() {
-    if (!confirm('Are you sure you want to delete all generated test files? This action cannot be undone.')) {
-        return;
-    }
-
-    const btn = this;
-    const originalHtml = btn.innerHTML;
-    
-    // Show loading state
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Cleaning...';
-
-    fetch('/api/cleanup_tests', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const toast = new bootstrap.Toast(document.getElementById(data.success ? 'successToast' : 'errorToast'));
-        const toastBody = document.querySelector(`#${data.success ? 'successToast' : 'errorToast'} .toast-body`);
-        
-        if (toastBody) {
-            toastBody.textContent = data.message || data.error || 'Operation completed';
-            toast.show();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        const toast = new bootstrap.Toast(document.getElementById('errorToast'));
-        const toastBody = document.querySelector('#errorToast .toast-body');
-        if (toastBody) {
-            toastBody.textContent = 'Failed to clean up test files: ' + (error.message || 'Unknown error');
-            toast.show();
-        }
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
-    });
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Enable tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
+document.addEventListener('DOMContentLoaded', function() {    
     // Attach click handlers to all generate buttons
     var generateButtons = document.querySelectorAll('.generate-btn');
     var deleteButtons = document.querySelectorAll('.delete-scenario-btn');

@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Upload - Swagger API Viewer{% endblock %}
-
 {% block content %}
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2>Upload Swagger/OpenAPI Files</h2>
-            <p class="text-muted mb-0">Upload one or more Swagger/OpenAPI JSON or YAML files to view their documentation</p>
+            <p class="text-muted mb-0">Upload one or more Swagger/OpenAPI JSON files to view their documentation</p>
         </div>
         <button id="cleanupBtn" class="btn btn-danger">
             <i class="bi bi-trash me-1"></i> Cleanup Generated Tests
@@ -18,7 +16,7 @@
         <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}" id="uploadForm">
             <div class="mb-3">
                 <input type="file" class="form-control" name="files" id="files" accept=".json,.yaml,.yml" multiple required>
-                <div class="form-text">Select one or more files (JSON/YAML)</div>
+                <div class="form-text">Select one or more files (JSON)</div>
             </div>
             <button class="btn btn-primary" type="submit" id="uploadButton">
                 <i class="bi bi-upload me-2"></i>Upload Files
