@@ -1015,12 +1015,6 @@ def test_data():
     )
 
 
-@app.route("/generated_tests/<path:filename>")
-def serve_generated_file(filename):
-    """Serve files from the generated_tests directory."""
-    return send_from_directory(TEST_FOLDER, filename)
-
-
 @app.route("/test-results/<folder_id>/view-jtl")
 def view_jtl_file(folder_id):
     """Serve JTL file content for viewing or as JSON."""

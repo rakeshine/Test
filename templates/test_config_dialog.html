@@ -1,0 +1,177 @@
+<!-- templates/test_config_dialog.html -->
+<div class="modal fade" id="testConfigModal" tabindex="-1" aria-labelledby="testConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testConfigModalLabel">Test Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="configForm">
+                    <div class="mb-4">
+                        <h6 class="mb-3 text-primary">Test Parameters</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Test Name</label>
+                                <input type="text" class="form-control" name="test_name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Number of Threads</label>
+                                <input type="number" class="form-control" name="threads" min="1" value="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Ramp-up (seconds)</label>
+                                <input type="number" class="form-control" name="rampup" min="0" value="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Duration (seconds)</label>
+                                <input type="number" class="form-control" name="duration" min="1" value="60" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Loop Count</label>
+                                <input type="number" class="form-control" name="loop_count" min="1" value="1" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="mb-3 text-primary">Endpoint Configuration</h6>
+                        <div id="endpointWeights" class="mb-3">
+                            <!-- Dynamic content will be inserted here -->
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">Generate Test</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Function to open the configuration dialog
+function openTestConfigDialog(endpoints, callback) {
+    console.log('openTestConfigDialog called with endpoints:', endpoints);
+    
+    const modalEl = document.getElementById('testConfigModal');
+    if (!modalEl) {
+        console.error('Modal element not found');
+        return;
+    }
+    
+    // Check if Bootstrap is available
+    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+        console.error('Bootstrap Modal not found. Make sure Bootstrap JS is properly loaded.');
+        return;
+    }
+    
+    // Initialize modal if not already done
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    
+    const form = document.getElementById('configForm');
+    const container = document.getElementById('endpointWeights');
+    
+    if (!form || !container) {
+        console.error('Required elements not found');
+        return;
+    }
+    
+    // Reset form and container
+    form.reset();
+    container.innerHTML = '';
+    
+    // Set default test name
+    const testName = form.querySelector('input[name="test_name"]');
+    testName.value = `${endpoints[0].method}_${endpoints[0].path.replace(/\//g, '_')}_test`.toLowerCase();
+    
+    // Add endpoint configuration
+    endpoints.forEach((endpoint, index) => {
+        const endpointHtml = `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">${endpoint.method} ${endpoint.path}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Weight (1-100)</label>
+                            <input type="number" class="form-control" name="weight_${index}" min="1" max="100" value="100" required>
+                        </div>
+                    </div>
+                    ${endpoint.summary ? `
+                    <div class="mt-2 text-muted small">
+                        ${endpoint.summary}
+                    </div>` : ''}
+                </div>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', endpointHtml);
+    });
+    
+    // Handle form submission
+    form.onsubmit = function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const config = {
+            test_name: formData.get('test_name'),
+            threads: parseInt(formData.get('threads')),
+            rampup: parseInt(formData.get('rampup')),
+            duration: parseInt(formData.get('duration')),
+            loop_count: parseInt(formData.get('loop_count')),
+            endpoints: endpoints.map((endpoint, index) => ({
+                ...endpoint,
+                weight: parseInt(formData.get(`weight_${index}`))
+            }))
+        };
+        
+        // Call the callback with the config
+        if (typeof callback === 'function') {
+            callback(config);
+        }
+        
+        // Close the modal
+        modal.hide();
+    };
+    
+    // Show the modal
+    console.log('Showing modal...');
+    try {
+        modal.show();
+        console.log('Modal shown successfully');
+    } catch (error) {
+        console.error('Error showing modal:', error);
+    }
+}
+</script>
+
+<style>
+#testConfigModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+#testConfigModal .form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+#testConfigModal .card {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+#testConfigModal .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+@media (max-width: 768px) {
+    #testConfigModal .modal-dialog {
+        margin: 0.5rem;
+    }
+}
+</style>
