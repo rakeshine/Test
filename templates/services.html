@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+{{ super() }}
 <div class="container">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Services</h2>
@@ -58,68 +59,208 @@
 
 {% block extra_js %}
 {{ super() }}
+
+<!-- Include the test config dialog -->
+{% include 'test_config_dialog.html' %}
+
 <script>
-function handleGenerateServiceClick(e) {
-  e.preventDefault();
-  const btn = e.currentTarget;
-  const filename = btn.getAttribute('data-service-filename');
-  const svcName = btn.getAttribute('data-service-name') || filename;
-  if (!filename) return;
+// Function to generate tests with configuration
+function generateServiceTestWithConfig(serviceData, config, btn, originalHtml) {
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
 
-  const originalHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
-
-  fetch('/api/generate_test_scripts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    body: JSON.stringify({
-      type: 'service',
-      service: filename,
-      scenario_name: filename.split('.')[0]  // Use filename without extension as scenario name
-    })
-  })
-  .then(r => {
-    if (!r.ok) return r.json().then(j => { throw j; });
-    return r.json();
-  })
-  .then(data => {
-    const toast = new bootstrap.Toast(document.getElementById('successToast'));
-    const toastBody = document.querySelector('#successToast .toast-body');
-    const fileList = (data.files || []).map(f => '<li>' + (f.split('/').pop()) + '</li>').join('');
-    var html = '<div>' +
-      '<p>Test files for "' + svcName + '" have been generated successfully.</p>' +
-      '<p class="mb-1">Saved to: <code>' + (data.output_dir || '') + '</code></p>' +
-      '<div class="mt-2">' +
-        '<button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#svcFileList">Show generated files</button>' +
-        '<div class="collapse mt-2" id="svcFileList">' +
-          '<div class="card card-body bg-dark text-white p-2">' +
-            '<ul class="mb-0">' + fileList + '</ul>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-    if (toastBody) { toastBody.innerHTML = html; toast.show(); }
-  })
-  .catch(err => {
-    const toast = new bootstrap.Toast(document.getElementById('errorToast'));
-    const toastBody = document.querySelector('#errorToast .toast-body');
-    const msg = (err && (err.error || err.message)) || 'Failed to generate test files';
-    if (toastBody) { toastBody.textContent = msg; toast.show(); }
-  })
-  .finally(() => {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
-  });
+    console.log('Generating tests with config:', config);
+    
+    // Prepare the request data
+    const requestData = {
+        type: 'service',
+        service: serviceData.filename,
+        scenario_name: serviceData.filename.split('.')[0],
+        config: {
+            test_name: config.test_name || `test_${serviceData.name.toLowerCase().replace(/\s+/g, '_')}`,
+            threads: config.threads || 1,
+            rampup: config.rampup || 1,
+            duration: config.duration || 60,
+            loop_count: config.loop_count || 1,
+            endpoint_weights: config.endpoints ? config.endpoints.map(ep => ({
+                method: ep.method,
+                path: ep.path,
+                weight: ep.weight || 1
+            })) : []
+        }
+    };
+    
+    // Make the API call to generate tests
+    return fetch('/api/generate_test_scripts', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-Requested-With': 'XMLHttpRequest' 
+        },
+        body: JSON.stringify(requestData)
+    });
 }
 
-  document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function(el){ return new bootstrap.Tooltip(el); });
+function handleGenerateServiceClick(e) {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const filename = btn.getAttribute('data-service-filename');
+    const svcName = btn.getAttribute('data-service-name') || filename;
+    if (!filename) return;
 
-    document.querySelectorAll('.generate-service-btn').forEach(function(btn){
-      btn.addEventListener('click', handleGenerateServiceClick);
+    // Store the button state
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    // Prepare service data for the dialog
+    const serviceData = {
+        name: svcName,
+        filename: filename
+    };
+
+    // Store a reference to the modal element
+    const modalElement = document.getElementById('testConfigModal');
+    
+    // Function to reset button state
+    const resetButton = () => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    };
+    
+    // Add event listener for when modal is hidden
+    const handleModalHidden = () => {
+        if (modalElement) {
+            modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+        }
+        resetButton();
+    };
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading endpoints...';
+    
+    // Fetch endpoints for this service file
+    fetch(`/api/endpoints/${encodeURIComponent(filename)}`)
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.warn(`No endpoints found for service: ${filename}`);
+                    return [];
+                }
+                throw new Error(`Failed to fetch endpoints: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(endpoints => {
+            // If no endpoints found, use a default one
+            if (!endpoints || endpoints.length === 0) {
+                console.warn(`No endpoints found for service: ${filename}`);
+                endpoints = [{
+                    method: 'SERVICE',
+                    path: `/${filename.split('.')[0]}`,
+                    name: svcName,
+                    file: filename,
+                    type: 'service',
+                    summary: `Test configuration for ${svcName}`,
+                    weight: 1
+                }];
+            } else {
+                // Add weight to each endpoint for the test configuration
+                endpoints = endpoints.map(ep => ({
+                    ...ep,
+                    weight: 1,  // Default weight
+                    type: 'endpoint'
+                }));
+            }
+
+            // Add modal hidden event listener
+            if (modalElement) {
+                modalElement.addEventListener('hidden.bs.modal', handleModalHidden, { once: true });
+            }
+            
+            // Open the configuration dialog with the fetched endpoints
+            openTestConfigDialog(endpoints, (config) => {
+                // This runs when the user submits the config
+                console.log('Generating tests with config:', config);
+                
+                // Prepare service data for the API call
+                const serviceData = {
+                    name: svcName,
+                    filename: filename
+                };
+                
+                // Call the generate function
+                generateServiceTestWithConfig(serviceData, config, btn, originalHtml)
+                    .then(r => {
+                        if (!r.ok) return r.json().then(j => { throw j; });
+                        return r.json();
+                    })
+                    .then(data => {
+                const toast = new bootstrap.Toast(document.getElementById('successToast'));
+                const toastBody = document.querySelector('#successToast .toast-body');
+                const fileList = (data.files || []).map(f => '<li>' + (f.split('/').pop()) + '</li>').join('');
+                var html = '<div>' +
+                    '<p>Test files for "' + svcName + '" have been generated successfully.</p>' +
+                    '<p class="mb-1">Saved to: <code>' + (data.output_dir || '') + '</code></p>' +
+                    '<div class="mt-2">' +
+                        '<button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#svcFileList">Show generated files</button>' +
+                        '<div class="collapse mt-2" id="svcFileList">' +
+                            '<div class="card card-body bg-dark text-white p-2">' +
+                                '<ul class="mb-0">' + fileList + '</ul>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+                if (toastBody) { 
+                    toastBody.innerHTML = html; 
+                    toast.show(); 
+                }
+            })
+            .catch(err => {
+                console.error('Error generating tests:', err);
+                const toast = new bootstrap.Toast(document.getElementById('errorToast'));
+                const toastBody = document.querySelector('#errorToast .toast-body');
+                const msg = (err && (err.error || err.message)) || 'Failed to generate test files';
+                if (toastBody) { 
+                    toastBody.textContent = msg; 
+                    toast.show(); 
+                }
+            })
+            .finally(() => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
+            });
+        });
     });
-  });
+
+    // Reset the button if modal is closed without submitting
+    const modal = document.getElementById('testConfigModal');
+    if (modal) {
+        const handleModalClose = function() {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        };
+        modal.addEventListener('hidden.bs.modal', handleModalClose, { once: true });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(el) { 
+        return new bootstrap.Tooltip(el); 
+    });
+
+    // Add click handlers for generate test buttons
+    document.querySelectorAll('.generate-service-btn').forEach(btn => {
+        btn.addEventListener('click', handleGenerateServiceClick);
+    });
+});
 </script>
 {% endblock %}

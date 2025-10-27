@@ -53,7 +53,6 @@
 <script>
 // Function to open the configuration dialog
 function openTestConfigDialog(endpoints, callback) {
-    console.log('openTestConfigDialog called with endpoints:', endpoints);
     
     const modalEl = document.getElementById('testConfigModal');
     if (!modalEl) {
@@ -83,24 +82,38 @@ function openTestConfigDialog(endpoints, callback) {
     
     // Reset form and container
     form.reset();
-    container.innerHTML = '';
+    container.innerHTML = '';  // Clear any existing content
     
     // Set default test name
     const testName = form.querySelector('input[name="test_name"]');
     testName.value = `${endpoints[0].method}_${endpoints[0].path.replace(/\//g, '_')}_test`.toLowerCase();
     
-    // Add endpoint configuration
+    // Calculate equal weight for each endpoint
+    const equalWeight = Math.floor(100 / endpoints.length);
+    const remainder = 100 % endpoints.length;
+    
+    // Add endpoint configuration with equal weight distribution
     endpoints.forEach((endpoint, index) => {
+        // Distribute remainder to make sure total is 100
+        const weight = index < remainder ? equalWeight + 1 : equalWeight;
+        
         const endpointHtml = `
             <div class="card mb-3">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">${endpoint.method} ${endpoint.path}</h6>
+                    <span class="badge bg-primary">${weight}%</span>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
                             <label class="form-label">Weight (1-100)</label>
-                            <input type="number" class="form-control" name="weight_${index}" min="1" max="100" value="100" required>
+                            <input type="number" class="form-control weight-input" 
+                                   name="weight_${index}" 
+                                   min="1" 
+                                   max="100" 
+                                   value="${weight}" 
+                                   required
+                                   onchange="updateTotalWeight()">
                         </div>
                     </div>
                     ${endpoint.summary ? `
@@ -112,9 +125,56 @@ function openTestConfigDialog(endpoints, callback) {
         container.insertAdjacentHTML('beforeend', endpointHtml);
     });
     
+    // Add total weight display
+    container.insertAdjacentHTML('beforeend', `
+        <div class="alert alert-info p-2 mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Total Weight: <strong><span id="totalWeight">100</span>%</strong></span>
+                <span id="weightStatus" class="badge bg-success">Valid</span>
+            </div>
+        </div>
+    `);
+    
+    // Function to update total weight
+    window.updateTotalWeight = function() {
+        const weightInputs = document.querySelectorAll('.weight-input');
+        let total = 0;
+        
+        weightInputs.forEach(input => {
+            const value = parseInt(input.value) || 0;
+            total += value;
+        });
+        
+        const totalWeightElement = document.getElementById('totalWeight');
+        const weightStatus = document.getElementById('weightStatus');
+        
+        if (totalWeightElement) {
+            totalWeightElement.textContent = total;
+        }
+        
+        if (weightStatus) {
+            if (total === 100) {
+                weightStatus.textContent = 'Valid';
+                weightStatus.className = 'badge bg-success';
+            } else {
+                weightStatus.textContent = `Needs ${100 - total} more`;
+                weightStatus.className = 'badge bg-danger';
+            }
+        }
+        
+        return total;
+    };
+    
     // Handle form submission
     form.onsubmit = function(e) {
         e.preventDefault();
+        
+        // Validate total weight
+        const totalWeight = updateTotalWeight();
+        if (totalWeight !== 100) {
+            alert('Total weight must equal 100%. Please adjust the weights.');
+            return false;
+        }
         
         const formData = new FormData(form);
         const config = {
@@ -137,6 +197,18 @@ function openTestConfigDialog(endpoints, callback) {
         // Close the modal
         modal.hide();
     };
+    
+    // Initialize total weight display
+    updateTotalWeight();
+    
+    // Add event listener to clean up when modal is hidden
+    const handleModalHidden = () => {
+        container.innerHTML = '';  // Clear the container when modal is hidden
+    };
+    
+    // Remove any existing listeners to prevent duplicates
+    modalEl.removeEventListener('hidden.bs.modal', handleModalHidden);
+    modalEl.addEventListener('hidden.bs.modal', handleModalHidden);
     
     // Show the modal
     console.log('Showing modal...');

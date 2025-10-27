@@ -3,6 +3,7 @@ import os
 import json
 import re
 import shutil
+from pathlib import Path
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,7 @@ from flask import (
     url_for,
     flash,
     send_from_directory,
+    abort,
 )
 import yaml
 import pandas as pd
@@ -503,7 +505,7 @@ def index():
 def get_jtl_metrics(folder_id):
     try:
         base_dir = Path(app.config["TEST_FOLDER"])
-        test_results_dir = os.path.join(base_dir, folder_id, "jtl")
+        test_results_dir = os.path.join(base_dir, folder_id)
 
         if not os.path.exists(test_results_dir):
             return jsonify({"error": "Test results not found"}), 404
@@ -727,6 +729,38 @@ def endpoints():
         "endpoints.html", endpoints=cleaned_endpoints, active_page="endpoints"
     )
 
+@app.route("/api/endpoints/<path:filename>")
+def get_endpoints_by_file(filename):
+    """Get all endpoints for a specific service file."""
+    
+    try:
+        # Ensure the filename is safe
+        from werkzeug.utils import secure_filename
+        
+        filename = secure_filename(filename)
+        if not filename:
+            return jsonify({"error": "Invalid filename"}), 400
+            
+        # Build the full file path
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File not found"}), 404
+            
+        # Parse the file and extract endpoints
+        try:
+            swagger_data = parse_swagger_file(file_path)
+            endpoints = extract_endpoints(swagger_data, filename)
+            return jsonify(clean_data(endpoints))
+        except Exception as e:
+            app.logger.error(f"Error parsing {filename}: {str(e)}")
+            return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
+            
+    except Exception as e:
+        app.logger.error(f"Error getting endpoints for {filename}: {str(e)}")
+        return jsonify({"error": "Failed to get endpoints"}), 500
+
 
 @app.route("/api/files/<path:filename>", methods=["DELETE"])
 def delete_file(filename):
@@ -874,23 +908,75 @@ def generate_test_scripts():
                 400,
             )
 
+        # Apply UI configuration to scenario data if provided
+        if 'config' in data:
+            config = data['config']
+            
+            # Update test parameters
+            if 'test_name' in config:
+                scenario_name = config['test_name']
+            
+            # Update thread group settings
+            if 'threads' in config and 'rampup' in config and 'duration' in config:
+                if 'thread_group' not in scenario_data:
+                    scenario_data['thread_group'] = {}
+                scenario_data['thread_group'].update({
+                    'threads': config['threads'],
+                    'rampup': config['rampup'],
+                    'duration': config['duration'],
+                    'loopCount': config.get('loop_count', 1)
+                })
+            
+            # Update endpoint weights if provided
+            if 'endpoint_weights' in config and 'endpoints' in scenario_data:
+                # Create a mapping of endpoint identifiers to their weights
+                endpoint_weights = {
+                    f"{e.get('method', '').upper()} {e.get('path', '')}": e.get('weight', 1)
+                    for e in config['endpoint_weights']
+                }
+                
+                # Update weights in the scenario data
+                for endpoint in scenario_data['endpoints']:
+                    endpoint_id = f"{endpoint.get('method', '').upper()} {endpoint.get('path', '')}"
+                    if endpoint_id in endpoint_weights:
+                        endpoint['weight'] = endpoint_weights[endpoint_id]
+        
         # Common test generation logic
-        scenario_dir = Path(app.config["TEST_FOLDER"]) / scenario_name
+        # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        scenario_dir = Path(app.config["TEST_FOLDER"]) / scenario_name # / timestamp
         scenario_dir.mkdir(parents=True, exist_ok=True)
 
+        # Generate test files
         result = generate_from_scenario(
             scenario_data=scenario_data,
             uploads_dir=app.config["UPLOAD_FOLDER"],
             output_dir=str(scenario_dir),
         )
 
+        # Save the configuration as JSON
+        config_data = {
+            "scenario_name": scenario_name,
+            "config": data.get('config', {}),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "test_type": test_type
+        }
+        
+        config_path = scenario_dir / "test_config.json"
+        with open(config_path, 'w') as f:
+            json.dump(config_data, f, indent=2)
+        
+        # Add config file to the result
+        result_files = result.get("files", [])
+        result_files.append(str(config_path))
+
         return jsonify(
             {
                 "success": True,
                 "message": f"Test files generated successfully for {test_type}",
-                "files": result.get("files", []),
+                "files": result_files,
                 "jmx": result.get("jmx"),
                 "output_dir": str(scenario_dir),
+                "config_path": str(config_path)
             }
         )
 
@@ -912,6 +998,41 @@ def delete_scenario_api(scenario_name: str):
         return jsonify({"success": True, "message": f"Scenario {safe_name} deleted"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/db/tests/<path:filepath>")
+def serve_test_file(filepath):
+    """Serve files from the test directory.
+    
+    Args:
+        filepath: Relative path to the file within the test directory
+        
+    Returns:
+        The requested file or 404 if not found
+    """
+    try:
+        # Ensure the requested path is within the test directory
+        test_dir = Path(app.config["TEST_FOLDER"])
+        file_path = (test_dir / filepath).resolve()
+        
+        # Security check: prevent directory traversal
+        if not file_path.is_relative_to(test_dir):
+            abort(403, "Access denied")
+            
+        # Check if file exists and is a file
+        if not file_path.is_file():
+            abort(404, "File not found")
+            
+        # Send the file
+        return send_from_directory(
+            test_dir,
+            filepath,
+            as_attachment=False
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error serving test file {filepath}: {str(e)}")
+        abort(404, "File not found")
+
 
 @app.route("/save_scenario", methods=["POST"])
 def save_scenario():

@@ -324,7 +324,16 @@ if (body != null) {
     
     return ctrl, hash_tree
 
-def generate_jmx(endpoints, auth_vars, output_dir):
+def generate_jmx(endpoints, auth_vars, output_dir, thread_group_config=None):
+    # Use provided thread group config or fall back to defaults
+    if thread_group_config is None:
+        thread_group_config = {}
+        
+    # Get thread group settings from config or use defaults
+    threads = str(thread_group_config.get('threads', DEFAULTS['threads']))
+    rampup = str(thread_group_config.get('rampup', DEFAULTS['rampup']))
+    duration = str(thread_group_config.get('duration', DEFAULTS['duration']))
+    loop_count = str(thread_group_config.get('loopCount', DEFAULTS['loopCount']))
     jmx = ET.Element("jmeterTestPlan", {
         "version": "1.2",
         "properties": "5.0",
@@ -369,22 +378,31 @@ def generate_jmx(endpoints, auth_vars, output_dir):
     })
     args = ET.SubElement(udv, "collectionProp", name="Arguments.arguments")
     
-    # Add default variables
+    # Add default variables from config or use DEFAULTS
     defaults = {
-        "threads": str(DEFAULTS["threads"]),
-        "rampup": str(DEFAULTS["rampup"]),
-        "duration": str(DEFAULTS["duration"]),
-        "loopCount": str(DEFAULTS["loopCount"])
+        "threads": threads,
+        "rampup": rampup,
+        "duration": duration,
+        "loopCount": loop_count
     }
     
     # Add auth variables
     defaults.update(auth_vars)
     
-    # Add endpoint percentages
-    pct_value = str(round(100 / len(endpoints), 2)) if endpoints else "100.0"
+    # Add endpoint percentages from config or distribute equally
+    total_weight = sum(ep.get('weight', 1) for ep in endpoints) or 1
     for ep in endpoints:
+        # Calculate percentage based on weight if available, otherwise distribute equally
+        if 'weight' in ep and total_weight > 0:
+            pct_value = str(round((ep['weight'] / total_weight) * 100, 2))
+        else:
+            pct_value = str(round(100 / len(endpoints), 2)) if endpoints else "100.0"
+            
         defaults[f"pct_{ep['name']}"] = pct_value
         defaults[f"testdata.{ep['name']}"] = f"${{__P(testdata.{ep['name']}, {ep['name']}.csv)}}"
+        
+        # Store the percentage back in the endpoint for reference
+        ep['_pct'] = pct_value
     
     # Add all variables to the user defined variables
     for name, value in defaults.items():
@@ -475,6 +493,8 @@ def generate_jmx(endpoints, auth_vars, output_dir):
 
 # -----------------------------------------------------
 def generate_from_scenario(scenario_data, uploads_dir, output_dir):
+    # Extract thread group config if available
+    thread_group_config = scenario_data.get('thread_group', {})
     os.makedirs(output_dir, exist_ok=True)
 
     endpoints = []
@@ -511,8 +531,7 @@ def generate_from_scenario(scenario_data, uploads_dir, output_dir):
             endpoint_data["server_config"] = server_config
             
         endpoints.append(endpoint_data)
-
-    jmx_path = generate_jmx(endpoints, all_auth_vars, output_dir)
+    jmx_path = generate_jmx(endpoints, all_auth_vars, output_dir, thread_group_config)
 
     # Collect generated files
     files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, f))]

@@ -341,14 +341,34 @@
         if (modal) {
             modalElement.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
+                if (!button) {
+                    // If no button, check if we have a current file path
+                    if (!currentFilePath) {
+                        console.error('No button found and no current file path available');
+                        event.preventDefault();
+                        return;
+                    }
+                    // Use the current file path and derive file name
+                    const fileName = currentFilePath.split('/').pop() || 'File';
+                    document.getElementById('editCsvModalLabel').textContent = `Edit ${fileName}`;
+                    return; // Skip the rest of the function
+                }
                 const fileName = button.getAttribute('data-filename');
                 const filePath = button.getAttribute('data-filepath');
+                
+                // Store the modal instance
+                const modalInstance = event.target;
+                
+                // Set current file path
                 currentFilePath = filePath;
                 
                 document.getElementById('editCsvModalLabel').textContent = `Edit ${fileName}`;
                 
+                // Prevent the modal from showing until we verify the file has data
+                event.preventDefault();
+                
                 // Load the CSV file using our custom endpoint
-                fetch(`/generated_tests/${filePath}`)
+                fetch(`/db/tests/${filePath}`)
                     .then(response => response.text())
                     .then(csvData => {
                         // Parse CSV to array using pipe as delimiter
@@ -386,10 +406,15 @@
                             });
                         });
                         
-                        if (rows.length === 0) {
+                        if (rows.length === 0 || rows[0].length === 0) {
                             console.warn('No data found in CSV');
-                            return;
+                            // Show alert
+                            alert('This endpoint does not require test data.');
+                            return; // Exit early, modal won't be shown
                         }
+                        
+                        // If we get here, we have valid data - show the modal
+                        modal.show();
 
                         // Set headers and data
                         headers = rows[0];

@@ -129,8 +129,14 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
 {% block extra_js %}
 {{ super() }}
+
+<!-- Include the test config dialog -->
+{% include 'test_config_dialog.html' %}
+
 <script>
 // Prevent duplicate script execution
 if (!window.__endpointsScriptInitialized) {
@@ -427,19 +433,50 @@ function generateExample(schema) {
     }
 }
 // Initialize scenario management when the DOM is fully loaded
-// Handle generate test button click
+let currentEndpointData = null;
+
+// Update the handleGenerateTest function
 function handleGenerateTest(e) {
+    e.preventDefault();
     const btn = e.currentTarget;
-    const detailsJson = btn.closest('.btn-group').querySelector('[data-details]').getAttribute('data-details');
+    const detailsJson = btn.closest('.btn-group').querySelector('[data-details]')?.getAttribute('data-details');
     if (!detailsJson) return;
     
-    const endpointData = JSON.parse(detailsJson);
-    if (!endpointData) return;
+    currentEndpointData = JSON.parse(detailsJson);
+    if (!currentEndpointData) return;
 
+    // Prepare endpoints data for the dialog
+    const endpoints = [{
+        method: currentEndpointData.method,
+        path: currentEndpointData.path,
+        file: currentEndpointData.file,
+        summary: currentEndpointData.summary || ''
+    }];
+
+    // Store the button state
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
 
+    // Open the configuration dialog
+    openTestConfigDialog(endpoints, (config) => {
+        // This runs when the user submits the config
+        console.log(config);
+        generateTestWithConfig(currentEndpointData, config, btn, originalHtml);
+    });
+
+    // Reset the button if modal is closed without submitting
+    const modal = document.getElementById('testConfigModal');
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function() {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }, { once: true });
+    }
+}
+
+// Function to handle test generation with config
+function generateTestWithConfig(endpointData, config, btn, originalHtml) {
     fetch('/api/generate_test_scripts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -447,7 +484,19 @@ function handleGenerateTest(e) {
             type: 'endpoint',
             service: endpointData.file,
             method: endpointData.method,
-            path: endpointData.path
+            path: endpointData.path,
+            config: {
+                test_name: config.test_name,
+                threads: config.threads,
+                rampup: config.rampup,
+                duration: config.duration,
+                loop_count: config.loop_count,
+                endpoint_weights: config.endpoints.map(ep => ({
+                    method: ep.method,
+                    path: ep.path,
+                    weight: ep.weight
+                }))
+            }
         })
     })
     .then(r => r.ok ? r.json() : r.json().then(err => Promise.reject(err)))
@@ -461,18 +510,22 @@ function handleGenerateTest(e) {
             return '<li>' + file.split('/').pop() + '</li>';
         }).join('');
         
-        // Create HTML content using string concatenation to avoid template literal conflicts
-        var htmlContent = '<div>';
-        htmlContent += '<p>Test files for "' + endpointData.path + '" have been generated successfully.</p>';
-        htmlContent += '<p class="mb-1">Saved to: <code>' + data.output_dir + '</code></p>';
-        htmlContent += '<div class="mt-2">';
-        htmlContent += '<button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#fileList">';
-        htmlContent += 'Show generated files';
-        htmlContent += '</button>';
-        htmlContent += '<div class="collapse mt-2" id="fileList">';
-        htmlContent += '<div class="card card-body bg-dark text-white p-2">';
-        htmlContent += '<ul class="mb-0">' + fileList + '</ul>';
-        htmlContent += '</div></div></div></div>';
+        // Create HTML content
+        const htmlContent = `
+            <div>
+                <p>Test files for "${endpointData.path}" have been generated successfully.</p>
+                <p class="mb-1">Saved to: <code>${data.output_dir || 'N/A'}</code></p>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#fileList">
+                        Show generated files
+                    </button>
+                    <div class="collapse mt-2" id="fileList">
+                        <div class="card card-body bg-dark text-white p-2">
+                            <ul class="mb-0">${fileList}</ul>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
         
         if (toastBody) {
             toastBody.innerHTML = htmlContent;
@@ -489,8 +542,10 @@ function handleGenerateTest(e) {
         }
     })
     .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml || 'Generate Test';
+        }
     });
 }
 
@@ -538,12 +593,14 @@ document.addEventListener('click', function(e) {
         }
         
         const modalTitle = document.querySelector('#schemaModal .modal-title');
-        modalTitle.textContent = 'Example';
+        if (modalTitle) {
+            modalTitle.textContent = 'Example';
+        }
         
         exampleModal.show();
     }
 });
-}
+} // Close the if (!window.__endpointsScriptInitialized) block
 </script>
-{% endblock %}
+
 {% endblock %}

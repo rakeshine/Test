@@ -77,7 +77,45 @@
 
 {% block extra_js %}
 {{ super() }}
+
+<!-- Include the test config dialog -->
+{% include 'test_config_dialog.html' %}
+
 <script>
+// Function to generate tests with configuration
+function generateScenarioTestWithConfig(scenarioName, config, btn, originalContent) {
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+    
+    // Prepare the request data
+    const requestData = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            type: 'scenario',
+            scenario_name: scenarioName,
+            config: {
+                test_name: config.test_name || scenarioName,
+                threads: config.threads || 1,
+                rampup: config.rampup || 1,
+                duration: config.duration || 60,
+                loop_count: config.loop_count || 1,
+                endpoint_weights: config.endpoints ? config.endpoints.map(ep => ({
+                    method: ep.method,
+                    path: ep.path,
+                    weight: ep.weight || 1
+                })) : []
+            }
+        })
+    };
+    
+    return fetch('/api/generate_test_scripts', requestData);
+}
+
 // Function to handle generate button click
 function handleGenerateClick(e) {
     e.preventDefault();
@@ -93,31 +131,74 @@ function handleGenerateClick(e) {
     
     // Show loading state
     generateBtn.disabled = true;
-    generateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+    generateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    // Get the scenario endpoints from the table row
+    const row = generateBtn.closest('tr');
+    const endpoints = [];
     
-    // Call the API to generate test files
-    const requestData = {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({
-            type: 'scenario',
-            scenario_name: scenarioName
-        })
+    if (row) {
+        const endpointElements = row.querySelectorAll('.endpoint-list .mb-1');
+        endpointElements.forEach(el => {
+            const method = el.querySelector('.badge')?.textContent.trim() || 'GET';
+            const path = el.querySelector('code')?.textContent.trim() || '';
+            const description = el.querySelector('.text-muted')?.textContent.trim() || '';
+            
+            if (path) {
+                endpoints.push({
+                    method: method,
+                    path: path,
+                    description: description,
+                    type: 'endpoint'
+                });
+            }
+        });
+    }
+
+    // If no endpoints found, add a default one
+    if (endpoints.length === 0) {
+        endpoints.push({
+            method: 'SCENARIO',
+            path: `/${scenarioName.toLowerCase().replace(/\s+/g, '-')}`,
+            description: `Test scenario: ${scenarioName}`,
+            type: 'scenario'
+        });
+    }
+
+    // Store a reference to the modal element
+    const modalElement = document.getElementById('testConfigModal');
+    
+    // Function to reset button state
+    const resetButton = () => {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = originalContent;
     };
     
-    fetch('/api/generate_test_scripts', requestData)
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { 
-                throw err; 
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
+    // Add event listener for when modal is hidden
+    const handleModalHidden = () => {
+        modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+        resetButton();
+    };
+    
+    modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+    
+    // Open the configuration dialog
+    openTestConfigDialog(endpoints, (config) => {
+        // Remove the hidden event listener since we're handling the submission
+        modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+        
+        console.log('Generating tests with config:', config);
+        
+        generateScenarioTestWithConfig(scenarioName, config, generateBtn, originalContent)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { 
+                        throw err; 
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
         // Show success message with file paths
         const toast = new bootstrap.Toast(document.getElementById('successToast'));
         const toastBody = document.querySelector('#successToast .toast-body');
@@ -163,19 +244,25 @@ function handleGenerateClick(e) {
         }
     })
     .finally(function() {
-        // Restore button state
-        if (generateBtn) {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = originalContent;
-        }
+            // Restore button state
+            if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = originalContent;
+            }
+        });
     });
 }
 
 // Initialize when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(el){ return new bootstrap.Tooltip(el); });
+    
     // Attach click handlers to all generate buttons
     var generateButtons = document.querySelectorAll('.generate-btn');
     var deleteButtons = document.querySelectorAll('.delete-scenario-btn');
+    
     generateButtons.forEach(function(button) {
         button.addEventListener('click', handleGenerateClick);
     });
