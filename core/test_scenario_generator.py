@@ -29,19 +29,48 @@ def add_jira_attachment_processor(hash_tree, issue_key=None):
     """
     if not issue_key:
         return
-        
-    post_processor = ET.Element("JSR223PostProcessor", {
+    
+    # Create tear-down thread group
+    tear_down_tg = ET.Element("com.atlantbh.jmeter.plugins.standard.threads.CustomThreadGroup", {
+        "guiclass": "com.atlantbh.jmeter.plugins.standard.gui.threads.CustomThreadGroupGui",
+        "testclass": "com.atlantbh.jmeter.plugins.standard.threads.CustomThreadGroup",
+        "testname": "TearDown Thread Group",
+        "enabled": "true"
+    })
+
+    # Configure thread group as tear-down
+    ET.SubElement(tear_down_tg, "elementProp", {"name": "ThreadGroup.main_controller", "elementType": "LoopController"})
+    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.on_sample_error"}).text = "continue"
+    ET.SubElement(tear_down_tg, "elementProp", {"name": "ThreadGroup.main_controller", "elementType": "LoopController"})
+    ET.SubElement(tear_down_tg, "boolProp", {"name": "LoopController.continue_forever"}).text = "false"
+    ET.SubElement(tear_down_tg, "intProp", {"name": "LoopController.loops"}).text = "1"
+    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.num_threads"}).text = "1"
+    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.ramp_time"}).text = "1"
+    ET.SubElement(tear_down_tg, "longProp", {"name": "ThreadGroup.start_time"}).text = "0"
+    ET.SubElement(tear_down_tg, "longProp", {"name": "ThreadGroup.end_time"}).text = "0"
+    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.scheduler"}).text = "false"
+    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.duration"}).text = ""
+    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.delay"}).text = ""
+    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.same_user_on_next_iteration"}).text = "true"
+    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.delayedStart"}).text = "false"
+    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.scheduler"}).text = "false"
+    ET.SubElement(tear_down_tg, "stringProp", {"name": "TestPlan.thread_group"}).text = "tearDown"
+
+    # Create hash tree for thread group
+    tg_hash_tree = ET.Element("hashTree")
+    
+    jsr223_sampler = ET.Element("JSR223Sampler", {
         "guiclass": "TestBeanGUI",
-        "testclass": "JSR223PostProcessor",
+        "testclass": "JSR223Sampler",
         "testname": "JIRA Attachment",
         "enabled": "true"
     })
     
     # Add properties
-    ET.SubElement(post_processor, "stringProp", {"name": "cacheKey"}).text = "true"
-    ET.SubElement(post_processor, "stringProp", {"name": "filename"})
-    ET.SubElement(post_processor, "stringProp", {"name": "parameters"})
-    ET.SubElement(post_processor, "stringProp", {"name": "scriptLanguage"}).text = "groovy"
+    ET.SubElement(jsr223_sampler, "stringProp", {"name": "cacheKey"}).text = "true"
+    ET.SubElement(jsr223_sampler, "stringProp", {"name": "filename"})
+    ET.SubElement(jsr223_sampler, "stringProp", {"name": "parameters"})
+    ET.SubElement(jsr223_sampler, "stringProp", {"name": "scriptLanguage"}).text = "groovy"
     
     # Script to attach JTL to JIRA
     script = f"""import groovy.json.JsonSlurper
@@ -108,10 +137,14 @@ try {{
     jiraClient?.close()
 }}"""
     
-    ET.SubElement(post_processor, "stringProp", {"name": "script"}).text = script
+    ET.SubElement(jsr223_sampler, "stringProp", {"name": "script"}).text = script
     
+    tg_hash_tree.append(jsr223_sampler)
+    tg_hash_tree.append(ET.Element("hashTree"))
+
     # Add to hash tree
-    hash_tree.append(post_processor)
+    hash_tree.append(tear_down_tg)
+    hash_tree.append(tg_hash_tree)
     hash_tree.append(ET.Element("hashTree"))
 
 
