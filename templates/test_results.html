@@ -209,6 +209,20 @@
                                 </option>
                                 {% endfor %}
                             </select>
+
+                                <!-- Add these input fields -->
+                            <span class="input-group-text">Ramp-up (s)</span>
+                            <input type="number" class="form-control" id="rampup" placeholder="60" min="1" style="max-width: 100px;" 
+                                title="Time in seconds to reach full number of users">
+                            
+                            <span class="input-group-text">Duration (s)</span>
+                            <input type="number" class="form-control" id="duration" placeholder="300" min="1" style="max-width: 100px;"
+                                title="Total test duration in seconds">
+                            
+                            <span class="input-group-text">Loops</span>
+                            <input type="number" class="form-control" id="loopCount" placeholder="1" min="1" style="max-width: 80px;"
+                                title="Number of test iterations">
+
                             <button class="btn btn-primary" type="button" id="addResultsBtn">
                                 <i class="bi bi-eye"></i> Upload JTL
                             </button>
@@ -217,7 +231,10 @@
                             </button>
                         </div>
                     </div>
-                    
+                    <!-- Add this note below the input group -->
+                    <div class="form-text text-muted small mt-1">
+                        <i class="bi bi-info-circle"></i> Ramp-up, Duration, and Loops are required when uploading JTL files.
+                    </div>
                     <div id="testResultInfo" class="mt-4" style="display: none;">
                         <div class="card mb-4">
                             <div class="card-header">
@@ -269,7 +286,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to load JTL metrics
     // Replace the loadJtlMetrics function with this:
     function loadJtlMetrics(folderId) {
-        metricsBody.innerHTML = '<tr><td colspan="100%" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+        const table = $('#metricsTable');
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable('#metricsTable')) {
+            table.DataTable().clear().destroy();
+        }
+
+        const thead = document.querySelector('#metricsTable thead tr');
+        const tbody = document.querySelector('#metricsTable tbody');
+        thead.innerHTML = '<th>Metric</th>';
+        tbody.innerHTML = '<tr><td colspan="100%" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
         
         fetch(`/api/test-results/${folderId}/jtl-metrics`)
             .then(response => response.json())
@@ -286,6 +311,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Define the metrics we want to show and their display names
                 const metricsConfig = [
                     { key: 'samples', name: 'Number of Threads', format: 'number' },
+                    { key: 'rampup', name: 'Rampup (s)', format: 'number' },
+                    { key: 'duration', name: 'Duration (s)', format: 'number' },
+                    { key: 'loop_count', name: 'Loops', format: 'number' },
                     { key: 'tps', name: 'Transactions per Second', format: 'number' },
                     { key: 'avg_response_time', name: 'Average Response Time (ms)', format: 'number' },
                     { key: 'median_response_time', name: 'Median Response Time (ms)', format: 'number' },
@@ -612,6 +640,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Get references to elements
     const addResultsBtn = document.getElementById('addResultsBtn');
+    const rampupInput = document.getElementById('rampup');
+    const durationInput = document.getElementById('duration');
+    const loopCountInput = document.getElementById('loopCount');
     const jtlFileInput = document.getElementById('jtlFileInput');
     
     console.log('DOM Elements:', { addResultsBtn, jtlFileInput, folderSelect, viewResultsBtn });
@@ -666,10 +697,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            const rampup = rampupInput.value.trim();
+            const duration = durationInput.value.trim();
+            const loopCount = loopCountInput.value.trim();
+
+            // Check for empty fields
+            if (!rampup || !duration || !loopCount) {
+                jtlFileInput.value = ''
+                alert('All test parameters are required');
+                return;
+            }
+
+            // Check for valid numbers
+            if (isNaN(rampup) || isNaN(duration) || isNaN(loopCount)) {
+                alert('Please enter valid numbers for all fields');
+                return;
+            }
+
+            // Check for positive values
+            if (rampup < 1 || duration < 1 || loopCount < 1) {
+                alert('All values must be greater than 0');
+                return;
+            }
+
             // Create FormData and append the file
             const formData = new FormData();
             formData.append('jtl_file', file);
             formData.append('folder', selectedFolder);
+            formData.append('rampup', rampupInput.value);
+            formData.append('duration', durationInput.value);
+            formData.append('loop_count', loopCountInput.value);
 
             // Show loading state
             const originalBtnText = addResultsBtn ? addResultsBtn.innerHTML : '';

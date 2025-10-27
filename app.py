@@ -302,6 +302,26 @@ def parse_jtl_file(jtl_path):
         latency = df["Latency"].mean() if "Latency" in df.columns else 0
         response_size = df["bytes"].mean() if "bytes" in df.columns else 0
 
+        timestamp_match = re.search(r'results_(\d{8}_\d{6})', str(jtl_path))
+        config_metrics = {
+            "rampup": 0,
+            "duration": 0,
+            "loop_count": 1
+        }
+        if timestamp_match:
+            timestamp = timestamp_match.group(1)
+            # Look for config file with matching timestamp
+            config_file = Path(jtl_path).parent / f"results_config_{timestamp}.json"
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    config_data = json.load(f)
+                    if "test_parameters" in config_data:
+                        config_metrics = {
+                            "rampup": config_data["test_parameters"].get("rampup", 0),
+                            "duration": config_data["test_parameters"].get("duration", 0),
+                            "loop_count": config_data["test_parameters"].get("loop_count", 1)
+                        }
+
         metrics = {
             "samples": total_requests,  # Add total number of samples
             "tps": total_requests / time_span if time_span > 0 else 0,
@@ -326,6 +346,11 @@ def parse_jtl_file(jtl_path):
             "response_size": response_size,
             "connect_time": connect_times.mean(),
         }
+
+        metrics["rampup"] = config_metrics["rampup"]
+        metrics["duration"] = config_metrics["duration"]
+        metrics["loop_count"] = config_metrics["loop_count"]
+
         return metrics
 
     except Exception as e:
@@ -1258,6 +1283,28 @@ def upload_jtl():
 
         # Save the file
         file.save(filepath)
+
+        # Save the test configuration
+        config_data = {
+            "test_parameters": {
+                "rampup": int(request.form.get("rampup", 60)),
+                "duration": int(request.form.get("duration", 300)),
+                "loop_count": int(request.form.get("loop_count", 1)),
+                "test_name": folder_name,
+                "original_filename": file.filename,
+                "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                "jtl_file": filename
+            }
+        }
+
+        # Save the config file with the same timestamp
+        config_filename = f"results_config_{timestamp}.json"
+        config_path = os.path.join(target_dir, config_filename)
+
+        with open(config_path, 'w') as f:
+            json.dump(config_data, f, indent=2)
+
+        app.logger.info(f"Test configuration saved to {config_path}")
 
         app.logger.info(f"JTL file saved to {filepath}")
         return jsonify(
