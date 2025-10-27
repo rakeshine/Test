@@ -31,6 +31,10 @@
                                 <label class="form-label">Loop Count</label>
                                 <input type="number" class="form-control" name="loop_count" min="1" value="1" required>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label">JIRA Issue Key</label>
+                                <input type="text" class="form-control" name="issue_key">
+                            </div>
                         </div>
                     </div>
 
@@ -183,6 +187,7 @@ function openTestConfigDialog(endpoints, callback) {
             rampup: parseInt(formData.get('rampup')),
             duration: parseInt(formData.get('duration')),
             loop_count: parseInt(formData.get('loop_count')),
+            issue_key: formData.get('issue_key'),
             endpoints: endpoints.map((endpoint, index) => ({
                 ...endpoint,
                 weight: parseInt(formData.get(`weight_${index}`))

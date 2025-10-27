@@ -83,6 +83,7 @@ function generateServiceTestWithConfig(serviceData, config, btn, originalHtml) {
             rampup: config.rampup || 1,
             duration: config.duration || 60,
             loop_count: config.loop_count || 1,
+            issue_key: config.issue_key || '',
             endpoint_weights: config.endpoints ? config.endpoints.map(ep => ({
                 method: ep.method,
                 path: ep.path,

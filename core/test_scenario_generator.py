@@ -22,6 +22,99 @@ def read_json(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
+def add_jira_attachment_processor(hash_tree, issue_key=None):
+    """
+    Adds a JSR223 PostProcessor to attach JTL file to JIRA
+    """
+    if not issue_key:
+        return
+        
+    post_processor = ET.Element("JSR223PostProcessor", {
+        "guiclass": "TestBeanGUI",
+        "testclass": "JSR223PostProcessor",
+        "testname": "JIRA Attachment",
+        "enabled": "true"
+    })
+    
+    # Add properties
+    ET.SubElement(post_processor, "stringProp", {"name": "cacheKey"}).text = "true"
+    ET.SubElement(post_processor, "stringProp", {"name": "filename"})
+    ET.SubElement(post_processor, "stringProp", {"name": "parameters"})
+    ET.SubElement(post_processor, "stringProp", {"name": "scriptLanguage"}).text = "groovy"
+    
+    # Script to attach JTL to JIRA
+    script = f"""import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import com.atlassian.jira.rest.client.JiraRestClient
+import com.atlassian.jira.rest.client.JiraRestClientFactory
+import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
+import com.atlassian.jira.rest.client.api.IssueRestClient
+import com.atlassian.jira.rest.client.api.domain.input.IssueInputBuilder
+import com.atlassian.jira.rest.client.api.domain.input.AttachmentInput
+import java.net.URI
+
+// JIRA Configuration
+def jiraUrl = props.get("jira.url")
+def jiraUsername = props.get("jira.username")
+def jiraApiToken = props.get("jira.apiToken")
+def jiraIssueKey = "{issue_key}"  // Using f-string to inject the issue key
+
+// Get JTL file path
+def jtlFile = new File("${{System.getProperty("jmeter.save.saveservice.output_format") ?: "csv"}}/" + 
+                      "${{sampleEvent.getThreadName()}}.jtl")
+
+if (!jiraUrl || !jiraUsername || !jiraApiToken) {{
+    log.warn("JIRA configuration is incomplete. Please check jira.url, jira.username, and jira.apiToken properties")
+    return
+}}
+
+if (!jiraIssueKey) {{
+    log.warn("JIRA issue key is not provided")
+    return
+}}
+
+if (!jtlFile.exists()) {{
+    log.warn("JTL file not found: " + jtlFile.absolutePath)
+    return
+}}
+
+try {{
+    // Create JIRA client
+    def restClientFactory = new AsynchronousJiraRestClientFactory()
+    def jiraUri = new URI(jiraUrl)
+    def jiraClient = restClientFactory.createWithBasicHttpAuthentication(
+        jiraUri, 
+        jiraUsername, 
+        jiraApiToken
+    )
+    
+    // Attach JTL file
+    def attachmentInput = new AttachmentInput(
+        jtlFile.name,
+        new FileInputStream(jtlFile),
+        "text/csv"
+    )
+    
+    jiraClient.issueClient.addAttachments(
+        jiraUri.resolve("/rest/api/2/issue/$jiraIssueKey/attachments").toURL().toString(),
+        [attachmentInput] as AttachmentInput[]
+    ).claim()
+    
+    log.info("Successfully attached JTL file to JIRA issue: " + jiraIssueKey)
+}} catch (Exception e) {{
+    log.error("Failed to attach JTL to JIRA: " + e.message, e)
+}} finally {{
+    jiraClient?.close()
+}}"""
+    
+    ET.SubElement(post_processor, "stringProp", {"name": "script"}).text = script
+    
+    # Add to hash tree
+    hash_tree.append(post_processor)
+    hash_tree.append(ET.Element("hashTree"))
+
+
 # -----------------------------------------------------
 # AUTH DETECTION
 # -----------------------------------------------------
@@ -330,10 +423,12 @@ def generate_jmx(endpoints, auth_vars, output_dir, thread_group_config=None):
         thread_group_config = {}
         
     # Get thread group settings from config or use defaults
-    threads = str(thread_group_config.get('threads', DEFAULTS['threads']))
-    rampup = str(thread_group_config.get('rampup', DEFAULTS['rampup']))
-    duration = str(thread_group_config.get('duration', DEFAULTS['duration']))
-    loop_count = str(thread_group_config.get('loopCount', DEFAULTS['loopCount']))
+    threads = "${__P(threads, "+ str(thread_group_config.get('threads', DEFAULTS['threads'])) + ")}"
+    rampup = "${__P(rampup, "+ str(thread_group_config.get('rampup', DEFAULTS['rampup'])) + ")}"
+    duration = "${__P(duration, "+ str(thread_group_config.get('duration', DEFAULTS['duration'])) + ")}"
+    loop_count = "${__P(loopCount, "+ str(thread_group_config.get('loopCount', DEFAULTS['loopCount'])) + ")}"
+    issue_key = str(thread_group_config.get('issueKey',''))
+
     jmx = ET.Element("jmeterTestPlan", {
         "version": "1.2",
         "properties": "5.0",
@@ -485,6 +580,8 @@ def generate_jmx(endpoints, auth_vars, output_dir, thread_group_config=None):
     #     tg_tree.append(header_manager)
     #     tg_tree.append(ET.Element("hashTree"))
 
+    if issue_key and issue_key != "":
+        add_jira_attachment_processor(root_tree, issue_key=issue_key)
     jmx_path = os.path.join(output_dir, "test.jmx")
     with open(jmx_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml(jmx))

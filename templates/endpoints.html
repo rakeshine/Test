@@ -491,6 +491,7 @@ function generateTestWithConfig(endpointData, config, btn, originalHtml) {
                 rampup: config.rampup,
                 duration: config.duration,
                 loop_count: config.loop_count,
+                issue_key: config.issue_key,
                 endpoint_weights: config.endpoints.map(ep => ({
                     method: ep.method,
                     path: ep.path,

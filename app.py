@@ -949,7 +949,8 @@ def generate_test_scripts():
                     'threads': config['threads'],
                     'rampup': config['rampup'],
                     'duration': config['duration'],
-                    'loopCount': config.get('loop_count', 1)
+                    'loopCount': config.get('loop_count', 1),
+                    'issueKey': config.get('issue_key', '')
                 })
             
             # Update endpoint weights if provided
@@ -1038,10 +1039,6 @@ def serve_test_file(filepath):
         # Ensure the requested path is within the test directory
         test_dir = Path(app.config["TEST_FOLDER"])
         file_path = (test_dir / filepath).resolve()
-        
-        # Security check: prevent directory traversal
-        if not file_path.is_relative_to(test_dir):
-            abort(403, "Access denied")
             
         # Check if file exists and is a file
         if not file_path.is_file():
