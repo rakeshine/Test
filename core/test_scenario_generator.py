@@ -21,133 +21,140 @@ def pretty_xml(element):
 def read_json(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-def add_jira_attachment_processor(hash_tree, issue_key=None):
+ 
+ 
+def add_jira_attachment_processor(root_tree, issue_key=None):
     """
     Adds a JSR223 PostProcessor to attach JTL file to JIRA
     """
     if not issue_key:
         return
-    
+       
     # Create tear-down thread group
-    tear_down_tg = ET.Element("com.atlantbh.jmeter.plugins.standard.threads.CustomThreadGroup", {
-        "guiclass": "com.atlantbh.jmeter.plugins.standard.gui.threads.CustomThreadGroupGui",
-        "testclass": "com.atlantbh.jmeter.plugins.standard.threads.CustomThreadGroup",
-        "testname": "TearDown Thread Group",
+    tear_down_tg = ET.Element("PostThreadGroup", {
+        "guiclass": "PostThreadGroupGui",
+        "testclass": "PostThreadGroup",
+        "testname": "tearDown Thread Group",
         "enabled": "true"
     })
-
+ 
     # Configure thread group as tear-down
-    ET.SubElement(tear_down_tg, "elementProp", {"name": "ThreadGroup.main_controller", "elementType": "LoopController"})
+    main_ctrl = ET.SubElement(tear_down_tg, "elementProp", {
+        "name": "ThreadGroup.main_controller",
+        "elementType": "LoopController",
+        "guiclass": "LoopControlPanel",
+        "testclass": "LoopController",
+        "testname": "Loop Controller",
+        "enabled": "true"
+    })
+    ET.SubElement(main_ctrl, "boolProp", {"name": "LoopController.continue_forever"}).text = "false"
+    ET.SubElement(main_ctrl, "stringProp", {"name": "LoopController.loops"}).text = "1"
+   
+    ET.SubElement(tear_down_tg, "intProp", {"name": "ThreadGroup.num_threads"}).text = "1"
+    ET.SubElement(tear_down_tg, "intProp", {"name": "ThreadGroup.ramp_time"}).text = "1"
     ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.on_sample_error"}).text = "continue"
-    ET.SubElement(tear_down_tg, "elementProp", {"name": "ThreadGroup.main_controller", "elementType": "LoopController"})
-    ET.SubElement(tear_down_tg, "boolProp", {"name": "LoopController.continue_forever"}).text = "false"
-    ET.SubElement(tear_down_tg, "intProp", {"name": "LoopController.loops"}).text = "1"
-    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.num_threads"}).text = "1"
-    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.ramp_time"}).text = "1"
-    ET.SubElement(tear_down_tg, "longProp", {"name": "ThreadGroup.start_time"}).text = "0"
-    ET.SubElement(tear_down_tg, "longProp", {"name": "ThreadGroup.end_time"}).text = "0"
-    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.scheduler"}).text = "false"
-    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.duration"}).text = ""
-    ET.SubElement(tear_down_tg, "stringProp", {"name": "ThreadGroup.delay"}).text = ""
     ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.same_user_on_next_iteration"}).text = "true"
-    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.delayedStart"}).text = "false"
-    ET.SubElement(tear_down_tg, "boolProp", {"name": "ThreadGroup.scheduler"}).text = "false"
-    ET.SubElement(tear_down_tg, "stringProp", {"name": "TestPlan.thread_group"}).text = "tearDown"
-
+   
     # Create hash tree for thread group
     tg_hash_tree = ET.Element("hashTree")
-    
+   
     jsr223_sampler = ET.Element("JSR223Sampler", {
         "guiclass": "TestBeanGUI",
         "testclass": "JSR223Sampler",
         "testname": "JIRA Attachment",
         "enabled": "true"
     })
-    
+   
     # Add properties
     ET.SubElement(jsr223_sampler, "stringProp", {"name": "cacheKey"}).text = "true"
     ET.SubElement(jsr223_sampler, "stringProp", {"name": "filename"})
     ET.SubElement(jsr223_sampler, "stringProp", {"name": "parameters"})
     ET.SubElement(jsr223_sampler, "stringProp", {"name": "scriptLanguage"}).text = "groovy"
-    
+   
     # Script to attach JTL to JIRA
-    script = f"""import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
-import com.atlassian.jira.rest.client.JiraRestClient
-import com.atlassian.jira.rest.client.JiraRestClientFactory
-import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory
-import com.atlassian.jira.rest.client.api.IssueRestClient
-import com.atlassian.jira.rest.client.api.domain.input.IssueInputBuilder
-import com.atlassian.jira.rest.client.api.domain.input.AttachmentInput
-import java.net.URI
-
+    script = f"""import org.apache.http.HttpHeaders
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.ContentType
+import org.apache.http.entity.mime.MultipartEntityBuilder
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.util.EntityUtils
+ 
 // JIRA Configuration
 def jiraUrl = props.get("jira.url")
 def jiraUsername = props.get("jira.username")
 def jiraApiToken = props.get("jira.apiToken")
 def jiraIssueKey = "{issue_key}"  // Using f-string to inject the issue key
-
+ 
 // Get JTL file path
-def jtlFile = new File("${{System.getProperty("jmeter.save.saveservice.output_format") ?: "csv"}}/" + 
-                      "${{sampleEvent.getThreadName()}}.jtl")
-
-if (!jiraUrl || !jiraUsername || !jiraApiToken) {{
-    log.warn("JIRA configuration is incomplete. Please check jira.url, jira.username, and jira.apiToken properties")
-    return
-}}
-
-if (!jiraIssueKey) {{
-    log.warn("JIRA issue key is not provided")
-    return
-}}
-
+File jtlFile = new File("results.jtl")
 if (!jtlFile.exists()) {{
-    log.warn("JTL file not found: " + jtlFile.absolutePath)
+    log.error("JTL file not found: " + jtlFilePath)
+    vars.put("jiraUploadStatus", "JTL file not found")
     return
 }}
-
+ 
+// === PREPARE AUTH HEADER ===
+String auth = "${{jiraUsername}}:${{jiraApiToken}}"
+String encoding = auth.bytes.encodeBase64().toString()
+ 
+log.info("Groovy script running...")
+// === BUILD HTTP CLIENT AND POST REQUEST ===
+CloseableHttpClient client = HttpClients.createDefault()
 try {{
-    // Create JIRA client
-    def restClientFactory = new AsynchronousJiraRestClientFactory()
-    def jiraUri = new URI(jiraUrl)
-    def jiraClient = restClientFactory.createWithBasicHttpAuthentication(
-        jiraUri, 
-        jiraUsername, 
-        jiraApiToken
-    )
-    
-    // Attach JTL file
-    def attachmentInput = new AttachmentInput(
-        jtlFile.name,
-        new FileInputStream(jtlFile),
-        "text/csv"
-    )
-    
-    jiraClient.issueClient.addAttachments(
-        jiraUri.resolve("/rest/api/2/issue/$jiraIssueKey/attachments").toURL().toString(),
-        [attachmentInput] as AttachmentInput[]
-    ).claim()
-    
-    log.info("Successfully attached JTL file to JIRA issue: " + jiraIssueKey)
+    String url = "${{jiraUrl}}/rest/api/2/issue/${{jiraIssueKey}}/attachments"
+    HttpPost post = new HttpPost(url)
+ 
+    // Jira requires special header for attachments
+    post.setHeader("X-Atlassian-Token", "no-check")
+    post.setHeader(HttpHeaders.AUTHORIZATION, "Basic ${{encoding}}")
+ 
+    // Build multipart request entity with file
+    def entityBuilder = MultipartEntityBuilder.create()
+    entityBuilder.addBinaryBody("file", jtlFile, ContentType.APPLICATION_OCTET_STREAM, jtlFile.name)
+ 
+    post.setEntity(entityBuilder.build())
+ 
+    // Execute request
+    def response = client.execute(post)
+ 
+    try {{
+        int statusCode = response.getStatusLine().getStatusCode()
+        String responseBody = ""
+        if (response.getEntity() != null) {{
+            responseBody = EntityUtils.toString(response.getEntity(), "UTF-8")
+        }}
+ 
+        if (statusCode >= 200 && statusCode < 300) {{
+            log.info("Successfully uploaded attachment to Jira issue ${{jiraIssueKey}}")
+            log.info("Response: " + responseBody)
+ 
+            vars.put("jiraUploadStatus", "Success")
+            vars.put("jiraUploadResponse", responseBody)
+        }} else {{
+            log.error("Failed to upload attachment. Status: ${{statusCode}}, Response: ${{responseBody}}")
+            vars.put("jiraUploadStatus", "Failed: " + statusCode)
+            vars.put("jiraUploadResponse", responseBody)
+        }}
+    }} finally {{
+        response.close()
+    }}
 }} catch (Exception e) {{
-    log.error("Failed to attach JTL to JIRA: " + e.message, e)
+    log.error("Exception when uploading to Jira: " + e.toString())
+    vars.put("jiraUploadStatus", "Exception:" + e.toString())
 }} finally {{
-    jiraClient?.close()
+    client.close()
 }}"""
-    
+   
     ET.SubElement(jsr223_sampler, "stringProp", {"name": "script"}).text = script
-    
+   
     tg_hash_tree.append(jsr223_sampler)
-    tg_hash_tree.append(ET.Element("hashTree"))
-
+ 
     # Add to hash tree
-    hash_tree.append(tear_down_tg)
-    hash_tree.append(tg_hash_tree)
-    hash_tree.append(ET.Element("hashTree"))
-
-
+    root_tree.append(tear_down_tg)
+    root_tree.append(tg_hash_tree)
+ 
+ 
 # -----------------------------------------------------
 # AUTH DETECTION
 # -----------------------------------------------------
@@ -614,7 +621,7 @@ def generate_jmx(endpoints, auth_vars, output_dir, thread_group_config=None):
     #     tg_tree.append(ET.Element("hashTree"))
 
     if issue_key and issue_key != "":
-        add_jira_attachment_processor(root_tree, issue_key=issue_key)
+        add_jira_attachment_processor(tp_tree, issue_key=issue_key)
     jmx_path = os.path.join(output_dir, "test.jmx")
     with open(jmx_path, "w", encoding="utf-8") as f:
         f.write(pretty_xml(jmx))
